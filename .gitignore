@@ -1,0 +1,2 @@
+# Smoke / temporary test files live in tests/ and are not committed.
+/tests/

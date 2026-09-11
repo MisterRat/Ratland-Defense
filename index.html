@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tower Defense</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #14171c; color: #dfe6ee;
+         font-family: system-ui, sans-serif; display: flex;
+         flex-direction: column; align-items: center; gap: 8px; padding: 12px; }
+  #hud { display: flex; gap: 18px; align-items: center; font-size: 15px; }
+  #hud b { color: #ffd76a; }
+  #wrap { display: flex; gap: 10px; }
+  canvas { background: #1d232c; border: 1px solid #2c3440; image-rendering: pixelated; }
+  #legend { width: 190px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .legend-item { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .legend-item .swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .legend-item .desc { width: 100%; }
+  #side { width: 210px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+  .shop-item, .tower-btn { background: #232a35; border: 1px solid #39424f;
+    color: #dfe6ee; padding: 7px 9px; border-radius: 6px; cursor: pointer; text-align: left; }
+  /* Buttons are inline-block by default, so each sized to its own content —
+     make the sidebar ones block-level so every box fills the column width,
+     matching the uniform enemy legend boxes on the left. Scoped here because
+     .tower-btn is also used in the top HUD bar, where buttons stay inline. */
+  #shop .shop-item, #towerPanel .tower-btn { display: block; width: 100%; box-sizing: border-box; }
+  .shop-item:hover, .tower-btn:hover { background: #2c3543; }
+  .shop-item.selected { outline: 2px solid #ffd76a; }
+  .shop-item:disabled, .tower-btn:disabled { opacity: .45; cursor: default; }
+  .name { font-weight: 600; }
+  .cost { color: #ffd76a; float: right; }
+  .desc { color: #8b97a7; font-size: 11px; margin-top: 2px; }
+  #towerPanel { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 8px; display: none; }
+  #towerPanel > div, #towerPanel > button { margin-bottom: 6px; }
+  .target-row { display: flex; gap: 6px; align-items: center; }
+  .target-row select { flex: 1; cursor: pointer; }
+  #msg { font-size: 14px; color: #8b97a7; min-height: 18px; }
+  /* First-time tutorial card: floats top-center over the play area. The
+     wrapper is pointer-events:none so it never blocks the canvas/shop; only
+     the card itself captures clicks (its buttons). */
+  #tutorial { position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    width: min(420px, 90vw); z-index: 10; pointer-events: none; }
+  #tutorial .tut-card { pointer-events: auto; background: #232a35;
+    border: 1px solid #ffd76a; border-radius: 8px; padding: 10px 12px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.5); font-size: 14px; }
+  #tutorial .tut-head { font-weight: 600; color: #ffd76a; margin-bottom: 4px; }
+  #tutorial .tut-body { color: #dfe6ee; }
+  #tutorial .tut-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  #tutorial .tut-row .tower-btn { padding: 4px 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div id="hud">
+    <span>💰 <b id="money">0</b></span>
+    <span>❤️ <b id="lives">0</b></span>
+    <span>🌊 Wave <b id="wave">0</b>/<b id="waveMax">20</b></span>
+    <span>🏆 <b id="score">0</b></span>
+    <label>🗺️ <select id="levelSelect" class="tower-btn"></select></label>
+    <button class="tower-btn" id="nextWaveBtn">Send Next Wave</button>
+    <button class="tower-btn" id="speedBtn">Speed: 1x</button>
+    <button class="tower-btn" id="pauseBtn">▶ Resume</button>
+    <button class="tower-btn" id="muteBtn">🔊 Sound</button>
+    <a class="tower-btn" href="levelgen.html" style="text-decoration:none;">🎲 Level Generator</a>
+  </div>
+  <div id="wrap">
+    <div id="legend"></div>
+    <canvas id="game" width="1400" height="900"></canvas>
+    <div id="side">
+      <div id="shop"></div>
+      <div id="towerPanel"></div>
+    </div>
+  </div>
+  <div id="msg">Pick a tower, click a grass tile to build, then press ▶ Resume to start.</div>
+  <!-- Classic scripts in dependency order (works from file:// without a server) -->
+  <script src="js/config.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/level_validate.js"></script>
+  <script src="js/level_registry.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/score.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/path.js"></script>
+  <!-- External levels: AUTO-GENERATED from levels/*.json (node tools/build_levels.mjs).
+       MUST load after path.js — its validation needs hasSelfIntersection. -->
+  <script src="js/levels_external.js"></script>
+  <!-- Custom levels: localStorage mirror from the level generator page. -->
+  <script src="js/level_custom.js"></script>
+  <script src="js/enemy.js"></script>
+  <script src="js/tower.js"></script>
+  <script src="js/projectile.js"></script>
+  <script src="js/levelgen_waves.js"></script>
+  <script src="js/wave.js"></script>
+  <script src="js/sfx_sounds.js"></script>
+  <script src="js/sfx.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

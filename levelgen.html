@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tower Defense — Level Generator</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #14171c; color: #dfe6ee;
+         font-family: system-ui, sans-serif; display: flex;
+         flex-direction: column; align-items: center; gap: 10px; padding: 12px; }
+  h1 { font-size: 20px; margin: 4px 0 0; }
+  a.back { color: #8b97a7; text-decoration: none; font-size: 13px; }
+  a.back:hover { color: #dfe6ee; }
+  #lgForm { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end;
+            background: #232a35; border: 1px solid #39424f; border-radius: 8px; padding: 12px; }
+  .lg-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .lg-field label.h { color: #8b97a7; font-size: 12px; }
+  .lg-field input[type=text], .lg-field input[type=number], .lg-field select {
+    background: #1d232c; border: 1px solid #39424f; color: #dfe6ee;
+    border-radius: 5px; padding: 5px 7px; font-size: 13px; min-width: 110px; }
+  #lgEnemies { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 420px; }
+  #lgEnemies label { display: flex; gap: 5px; align-items: center; font-size: 13px; cursor: pointer; }
+  #lgSelectAll { background: #2c3543; border: 1px solid #39424f; color: #8fd0ff;
+    border-radius: 5px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+  #lgSelectAll:hover { background: #35404f; }
+  .tower-btn { background: #2c3543; border: 1px solid #39424f; color: #dfe6ee;
+    padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .tower-btn:hover { background: #35404f; }
+  .tower-btn.primary { background: #2e5d3a; border-color: #3ddc84; }
+  .tower-btn.primary:hover { background: #376e45; }
+  #lgMsg { font-size: 14px; color: #ffd76a; min-height: 18px; }
+  #lgCards { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .lg-card { background: #232a35; border: 1px solid #39424f; border-radius: 8px;
+    padding: 10px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .lg-card canvas { border: 1px solid #2c3440; image-rendering: pixelated; }
+  .lg-stats { font-size: 12px; color: #8b97a7; }
+  .lg-card input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+  .lg-name { background: #1d232c; border: 1px solid #39424f; color: #ffd76a;
+    border-radius: 5px; padding: 4px 8px; font-size: 14px; width: 170px; text-align: center; }
+  .lg-instructions { background: #232a35; border: 1px solid #39424f; border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; line-height: 1.55; color: #b9c4d2; max-width: 760px; }
+  .lg-instructions h2 { font-size: 13px; margin: 0 0 6px; color: #ffd76a; letter-spacing: .3px; }
+  .lg-instructions ol { margin: 0; padding-left: 18px; }
+  .lg-instructions code { background: #1d232c; border: 1px solid #39424f; border-radius: 4px;
+    padding: 1px 5px; font-size: 12px; color: #8fd0ff; }
+</style>
+</head>
+<body>
+  <h1>🎲 Level Generator</h1>
+  <a class="back" href="index.html">← Back to game</a>
+  <div id="lgForm">
+    <div class="lg-field">
+      <span class="h">Enemies <button type="button" id="lgSelectAll">☑ Select All</button></span>
+      <div id="lgEnemies"></div>
+    </div>
+    <div class="lg-field"><label class="h" for="lgDifficulty">Difficulty</label>
+      <select id="lgDifficulty">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+        <option value="nightmare">Nightmare</option>
+      </select></div>
+    <div class="lg-field"><label class="h" for="lgMoney">Starting money</label>
+      <input type="number" id="lgMoney" value="150" min="0" step="10"></div>
+    <div class="lg-field"><label class="h" for="lgWaves">Waves</label>
+      <input type="number" id="lgWaves" value="12" min="1" max="50"></div>
+  </div>
+  <div style="display:flex; gap:10px;">
+    <button class="tower-btn primary" id="lgGenerate">🎲 Generate</button>
+    <button class="tower-btn" id="lgCreate">✅ Create</button>
+    <button class="tower-btn" id="lgTryAgain">🔄 Try Again</button>
+  </div>
+  <div class="lg-instructions">
+    <h2>📋 How to add your levels to the game</h2>
+    <ol>
+      <li>Press <strong>Create</strong>, then in the save dialog choose the <code>levels/</code> folder as the destination — every level file must live inside the <code>Levels</code> folder of this project (next to <code>riverbend.json</code>).</li>
+      <li>Once your files are in <code>levels/</code>, run <code>build_levels.bat</code> from the <code>Tools</code> folder (double-click it, or run it from a terminal) to rebuild the level list. The new levels will then appear in the game's level select.</li>
+      <li>If you saved somewhere else, move the downloaded .json files into <code>levels/</code> first, then run the build.</li>
+    </ol>
+  </div>
+  <div id="lgMsg">Configure the options, then press Generate.</div>
+  <div id="lgCards"></div>
+
+  <!-- Scripts in dependency order (works from file:// without a server) -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/level_validate.js"></script>
+  <script src="js/level_registry.js"></script>
+  <script src="js/path.js"></script>
+  <script src="js/level_custom.js"></script>
+  <script src="js/levelgen_paths.js"></script>
+  <script src="js/levelgen_names.js"></script>
+  <script src="js/levelgen_waves.js"></script>
+  <script src="js/levelgen_save.js"></script>
+  <script src="js/levelgen_ui.js"></script>
+  <script>
+    // Enemy checkboxes (all selectable types; childOnly like spore is excluded)
+    // + boot: register saved custom levels.
+    (function () {
+      lgBuildEnemyCheckboxes(document.getElementById('lgEnemies'), ENEMY_TYPES);
+      registerCustomLevels();
+      lgInit();
+    })();
+  </script>
+</body>
+</html>
