@@ -48,6 +48,7 @@ class Renderer {
   // Mortar aim mode: blast-radius preview at the hovered cell (green = valid
   // path cell, red X = not a path cell).
   drawMortarAimPreview(ctx, game, view) {
+    if (!view.hoverCell) return; // mouse hasn't entered the canvas yet
     const { cx, cy } = view.hoverCell;
     if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return;
     const { cell } = GRID;
@@ -77,7 +78,7 @@ class Renderer {
   drawEffects(ctx, effects) {
     for (const fx of effects) {
       if (fx.type === 'chain') {
-        const alpha = Math.max(0, fx.timer / 0.15);
+        const alpha = Math.max(0, fx.timer / (fx.duration || 0.15));
         ctx.strokeStyle = `rgba(105,240,255,${alpha})`;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -318,6 +319,7 @@ class Renderer {
 
   drawPlacementPreview(ctx, game, view) {
     const { cell } = GRID;
+    if (!view.hoverCell) return; // mouse hasn't entered the canvas yet
     const { cx, cy } = view.hoverCell;
     if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return;
     const ok = game.canPlace(cx, cy);

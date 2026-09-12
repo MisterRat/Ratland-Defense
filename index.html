@@ -11,7 +11,12 @@
   #hud { display: flex; gap: 18px; align-items: center; font-size: 15px; }
   #hud b { color: #ffd76a; }
   #wrap { display: flex; gap: 10px; }
-  canvas { background: #1d232c; border: 1px solid #2c3440; image-rendering: pixelated; }
+  /* align-self:flex-start keeps the canvas at its intrinsic 1400×900 — the
+     flex row's default (align-items:stretch) would otherwise stretch the
+     canvas TALLER whenever #towerPanel (or the shop) grows the row's height,
+     so the playfield visibly "grows" while a tower is selected. The row may
+     still grow; the canvas stays pinned to its top edge, unmoved and unscaled. */
+  canvas { background: #1d232c; border: 1px solid #2c3440; image-rendering: pixelated; align-self: flex-start; }
   #legend { width: 190px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
   .legend-item { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
     padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

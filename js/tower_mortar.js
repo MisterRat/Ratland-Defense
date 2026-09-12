@@ -103,6 +103,8 @@ function applyMortarBlast(impact, enemies, game) {
       const a = inBlast[i].e, b = inBlast[i + 1].e;
       segments.push({ x1: a.pos.x, y1: a.pos.y, x2: b.pos.x, y2: b.pos.y });
     }
-    game.effects.push({ type: 'chain', segments, timer: 0.15 });
+    // Same lifetime as the explosion splash (0.35s) so the lines stay
+    // visible for the whole detonation, not just its first few frames.
+    game.effects.push({ type: 'chain', segments, timer: 0.35, duration: 0.35 });
   }
 }

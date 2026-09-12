@@ -169,17 +169,28 @@ User-reported bugs + feature after first mortar playtest:
    own `range` × level scale (never the ammo tower's splash).
 2. **Tesla lines:** lines must be drawn between the enemies affected by a
    tesla-ammo mortar blast (kept: consecutive in-blast pairs; verified via
-   smoke + headless-browser screenshot).
+   smoke + headless-browser screenshot). Their lifetime was extended from
+   0.15s to 0.35s so they stay visible for the whole detonation, matching
+   the splash (`fx.duration` is now read by the renderer instead of a
+   hardcoded 0.15).
 3. **Splash visual (feature):** every detonation pushes an `explosion` effect
    — an expanding ring + soft flash at the impact point, sized to the blast
    radius, colored by the ammo type (`TOWER_TYPES[ammo].color`).
+
+ 4. **Playfield "grows" while a tower is selected:** reproduced headlessly —
+    the `#wrap` flex row uses the default `align-items: stretch`, so opening
+    `#towerPanel` (taller than the canvas) stretched the canvas from 900 to
+    ~959px. Fix: `canvas { align-self: flex-start }` in index.html — the row
+    may grow, but the canvas stays pinned top-left at its intrinsic 1400×900.
 
 ### Implementation steps
 - [x] js/config.js: boss `resist` list drops `'mortar'` (12 → 11 entries) + comment
 - [x] js/tower.js: mortar spec `sourceType: 'mortar'` (was the ammo key)
 - [x] js/enemy.js: `applySlow(ignoreResist)` / `applyBurn(dps, duration, ignoreResist)` — resistance skipped when set
 - [x] js/tower_mortar.js: blast passes `'mortar'` + `ignoreResist` DoTs; pushes `{type:'explosion', x, y, radius, color, timer, duration}` on every detonation
-- [x] js/render.js: `drawEffects` handles `explosion` (expanding ring + flash via new `hexA` helper); chain lines unchanged
+- [x] js/render.js: `drawEffects` handles `explosion` (expanding ring + flash via new `hexA` helper); chain alpha now reads `fx.duration || 0.15`
+- [x] index.html: `canvas { align-self: flex-start }` — stops the flex row stretching the canvas taller when the tower panel opens (playfield-grow bug)
+- [x] js/render.js: null-guard `view.hoverCell` in the placement/aim previews (pageerror when the mouse hasn't entered the canvas yet)
 - [x] js/utils.js: `hexA(hex, alpha)` helper
 - [x] tests/smoke_mortar.mjs: check 6 rewritten (no-resistance rule: full damage vs Soused/Colossus, full-strength burn), 6b Colossus full-damage + resist-list shape, 6c explosion effect; 5d/5e updated for the always-present splash
 - [x] tests/smoke_ui.mjs: Colossus legend row now expects the named 11-tower list (not "resists all towers")
@@ -188,7 +199,6 @@ User-reported bugs + feature after first mortar playtest:
 
 ## Next (unstarted)
 
-- Bug under investigation: playfield appears to grow while a Mortar is
-  selected (user report; no canvas-resize code found — browser repro in
-  progress). Candidate follow-ups: balance pass on the five new towers in
-  real play.
+- Playfield-grow bug FIXED in Phase 31 (item 4) — verified headlessly:
+  canvas stays 1402×902 in every selection state. Candidate follow-ups:
+  balance pass on the five new towers in real play.
