@@ -66,12 +66,72 @@ const TOWER_TYPES = {
     pierce: 5,
     desc: 'Piercing slug: hits up to 5 enemies in a line; damage halves per enemy.',
   },
+  // Phase 26: five new towers, all unlock at level 7 (external levels only).
+  tesla: {
+    name: 'Tesla', cost: 200, color: '#69f0ff', unlockLevel: 7, img: 'assets/tesla.png',
+    range: 140, damage: 18, fireRate: 1.8, projSpeed: 0, splash: 0, slow: 0,
+    chain: { hops: 3, hopRadius: 90, falloff: 0.8 },
+    desc: 'Chain lightning: instant bolt + 3 hops (×0.8 each, r90). Hits phased enemies.',
+  },
+  venom: {
+    name: 'Venom', cost: 110, color: '#9be15d', unlockLevel: 7, img: 'assets/venom.png',
+    range: 130, damage: 4, fireRate: 1.2, projSpeed: 380, splash: 0, slow: 0,
+    poison: { stacks: 5, dpsPerStack: 6, duration: 3 },
+    desc: 'Stacking poison: up to 5 stacks × 6 dps (30 dps cap), 3s refresh.',
+  },
+  reaper: {
+    name: 'Reaper', cost: 180, color: '#ff5da2', unlockLevel: 7, img: 'assets/reaper.png',
+    range: 200, damage: 40, fireRate: 0.6, projSpeed: 700, splash: 0, slow: 0,
+    execute: { threshold: 0.3, multiplier: 2.5 },
+    desc: 'Execute: ×2.5 damage to targets below 30% HP at impact.',
+  },
+  mint: {
+    name: 'Mint', cost: 150, color: '#4fd8a0', unlockLevel: 7, img: 'assets/mint.png',
+    range: 0, damage: 0, fireRate: 0, projSpeed: 0, splash: 0, slow: 0,
+    income: { amount: 10, interval: 8 },
+    desc: 'Economy: +$10 every 8s (scales with level). Income does NOT count toward score.',
+  },
+  warden: {
+    name: 'Warden', cost: 300, color: '#ffd76a', unlockLevel: 7, img: 'assets/warden.png',
+    range: 100, damage: 0, fireRate: 0, projSpeed: 0, splash: 0, slow: 0,
+    aura: { multiplier: 1.25 },
+    dynamicCost: true,
+    desc: 'Aura: +25% damage to towers in range (multiplicative). First $300, each next +$100.',
+  },
+  // Mortar: dumb artillery. No intrinsic damage — the shell carries the stats
+  // of the selected ammo tower. `range` is the blast radius (not a targeting
+  // range); the impact point is a player-chosen path cell (tower.targetPoint).
+  mortar: {
+    name: 'Mortar', cost: 400, color: '#b08968', unlockLevel: 7, img: 'assets/mortar.png',
+    range: 100, damage: 0, fireRate: 0.25, projSpeed: 350, splash: 0, slow: 0,
+    ammoDefault: 'cannon',
+    ammoTypes: ['cannon', 'flame', 'frost', 'tesla', 'venom'],
+    desc: 'Lobs a shell at a chosen path point every 4s (slowest tower). Pick ammo in the panel.',
+  },
 };
+
+// Warden dynamic placement cost: first $300, each additional +$100.
+function wardenPlacementCost(existingCount) {
+  return 300 + existingCount * 100;
+}
 
 // Is this tower buildable on the given 0-based map level?
 function isTowerAvailable(type, levelIndex) {
   const def = TOWER_TYPES[type];
   return !!def && (levelIndex + 1) >= def.unlockLevel;
+}
+
+// Phase 29: per-level tower roster. A level may carry a `towers` array
+// (set on the level generator page); when present, ONLY those towers are
+// buildable there — a restriction layer on top of the unlockLevel gate.
+// Levels without the field allow every unlocked tower (built-ins, older
+// external/custom levels). getLevel comes from js/level_registry.js, which
+// loads after this file; the call is late-bound and only happens at runtime.
+function isTowerAllowedOnLevel(type, levelIndex) {
+  if (!isTowerAvailable(type, levelIndex)) return false;
+  const lvl = (typeof getLevel === 'function') ? getLevel(levelIndex) : null;
+  if (!lvl || !lvl.towers) return true; // no roster = all unlocked towers allowed
+  return lvl.towers.includes(type);
 }
 
 // Targeting modes a tower can use (set per tower after placement).
@@ -100,32 +160,38 @@ function resistanceFactor(levelIndex) {
 
 // Enemy definitions. hp is the wave-1 baseline; see wave.hpScale.
 // `resist` lists tower keys whose damage/effect this enemy type reduces.
+// `desc` is a short 2-word legend blurb, shown only when the type has no resist.
 const ENEMY_TYPES = {
-  normal: { name: 'Minion',    hp: 40, speed: 70, reward: 7, livesCost: 1, radius: 11, color: '#e5533d', resist: [], unlockLevel: 1 },
+  normal: { name: 'Minion',    hp: 40, speed: 70, reward: 7, livesCost: 1, radius: 11, color: '#e5533d', resist: [], unlockLevel: 1, desc: 'basic fodder' },
   tank:   { name: 'Tanked',    hp: 140, speed: 45, reward: 16, livesCost: 2, radius: 14, color: '#8e6bbf', resist: ['basic'], unlockLevel: 2 },
   hot:    { name: 'Singed',    hp: 45, speed: 70, reward: 10, livesCost: 1, radius: 11, color: '#ff8552', resist: ['frost'], unlockLevel: 3 },
   wet:    { name: 'Soused',    hp: 45, speed: 70, reward: 10, livesCost: 1, radius: 11, color: '#3fb6c9', resist: ['flame'], unlockLevel: 4 },
   fast:   { name: 'Skitterer', hp: 26, speed: 120, reward: 8, livesCost: 1, radius: 9, color: '#ffd76a', resist: ['cannon'], unlockLevel: 5 },
   camo:   { name: 'Prowler',   hp: 45, speed: 90, reward: 10, livesCost: 1, radius: 10, color: '#9aa77a', resist: ['sniper'], unlockLevel: 6 },
+  // Colossus resists every tower EXCEPT the Mortar — the one tower it has no
+  // resistance to. (Mortar shells deal damage as sourceType 'mortar' and their
+  // DoTs apply without resistance, so no enemy can resist a mortar payload.)
   boss:   { name: 'Colossus',  hp: 900, speed: 38, reward: 120, livesCost: 5, radius: 18, color: '#ff5da2',
-            resist: ['basic', 'cannon', 'flame', 'frost', 'sniper', 'railgun'], unlockLevel: 1 },
+            resist: ['basic', 'cannon', 'flame', 'frost', 'sniper', 'railgun',
+                      'tesla', 'venom', 'reaper', 'mint', 'warden'], unlockLevel: 1 },
   // New roster (Phase 19): behavioral enemies. All unlock after level 6.
   // fission splits into spore children on death (splits); spore is childOnly —
   // it is never spawned by waves, only by a dying fission.
-  fission:{ name: 'Fission',   hp: 120, speed: 55, reward: 14, livesCost: 1, radius: 13, color: '#9be15d', resist: [], unlockLevel: 7,
+  fission:{ name: 'Fission',   hp: 120, speed: 55, reward: 14, livesCost: 1, radius: 13, color: '#9be15d', resist: [], unlockLevel: 7, desc: 'splits on death',
             splits: { key: 'spore', count: 2 } },
-  spore:  { name: 'Spore',     hp: 14, speed: 135, reward: 2, livesCost: 1, radius: 7, color: '#d3f0a0', resist: [], unlockLevel: 7, childOnly: true },
+  spore:  { name: 'Spore',     hp: 14, speed: 135, reward: 2, livesCost: 1, radius: 7, color: '#d3f0a0', resist: [], unlockLevel: 7, desc: 'fast split child', childOnly: true },
   // bolt cycles walk -> dash (burst); frost slow scales both phases.
+  // Walks 2.5s, then dashes for the final 1.0s of each 3.5s period.
   bolt:   { name: 'Bolt',      hp: 30, speed: 50, reward: 9, livesCost: 1, radius: 9, color: '#eef2ff', resist: ['sniper'], unlockLevel: 7,
-            burst: { dashSpeed: 170, dashDur: 0.8, period: 3.5 } },
+            burst: { dashSpeed: 170, dashDur: 1.0, period: 3.5 } },
   // bulwark regenerates flat HP per second (capped at maxHp).
-  bulwark:{ name: 'Bulwark',   hp: 220, speed: 40, reward: 18, livesCost: 2, radius: 15, color: '#8fa3bf', resist: [], unlockLevel: 7, regen: 6 },
+  bulwark:{ name: 'Bulwark',   hp: 220, speed: 40, reward: 18, livesCost: 2, radius: 15, color: '#8fa3bf', resist: [], unlockLevel: 7, desc: 'regenerates hp', regen: 6 },
   // mender heals other living enemies in radius (not itself), capped at maxHp.
-  mender: { name: 'Mender',    hp: 90, speed: 60, reward: 12, livesCost: 1, radius: 11, color: '#e786c3', resist: [], unlockLevel: 7,
+  mender: { name: 'Mender',    hp: 90, speed: 60, reward: 12, livesCost: 1, radius: 11, color: '#e786c3', resist: [], unlockLevel: 7, desc: 'heals nearby foes',
             heal: { radius: 90, hps: 8 } },
   // wisp alternates solid/phased; phased = untargetable (splash + burn still hit);
   // frost slow pauses the phase cycle.
-  wisp:   { name: 'Wisp',      hp: 60, speed: 75, reward: 11, livesCost: 1, radius: 10, color: '#c9b8ff', resist: [], unlockLevel: 7,
+  wisp:   { name: 'Wisp',      hp: 60, speed: 75, reward: 11, livesCost: 1, radius: 10, color: '#c9b8ff', resist: [], unlockLevel: 7, desc: 'phases untargetable',
             phase: { solid: 2.5, phased: 1.2 } },
 };
 

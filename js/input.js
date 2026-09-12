@@ -34,12 +34,31 @@ class Input {
     if (e.button === 2) return; // handled by contextmenu
     const { cx, cy } = this.cellFromEvent(e);
 
+    // Mortar aim mode: one click sets the impact point (path cells only).
+    if (this.view.aimingMortar) {
+      const tower = this.view.aimingMortar;
+      this.view.aimingMortar = null;
+      if (isPathCell(this.game.path, cx, cy)) {
+        tower.targetPoint = cellCenter(cx, cy, GRID.cell);
+        this.game.setMessage('Mortar target set.');
+      } else {
+        this.game.setMessage('Mortar must target a path tile.');
+      }
+      return;
+    }
+
     if (this.view.placingType) {
       const type = this.view.placingType;
       if (this.game.placeTower(type, cx, cy)) {
         this.view.placingType = null;
-        this.view.selectedTower = this.game.towers.get(key(cx, cy));
-        this.ui.renderTowerPanel(this.view.selectedTower);
+        const placed = this.game.towers.get(key(cx, cy));
+        this.view.selectedTower = placed;
+        this.ui.renderTowerPanel(placed);
+        // A freshly placed Mortar has no impact point yet: enter aim mode.
+        if (placed.def.ammoTypes && !placed.targetPoint) {
+          this.view.aimingMortar = placed;
+          this.game.setMessage('Mortar placed — click a path tile to set its target.');
+        }
       } else {
         this.game.setMessage('Cannot build there (path, occupied, or not enough money).');
       }
@@ -53,7 +72,10 @@ class Input {
   }
 
   cancel() {
-    if (this.view.placingType) {
+    if (this.view.aimingMortar) {
+      this.view.aimingMortar = null;
+      this.game.setMessage('Retarget cancelled.');
+    } else if (this.view.placingType) {
       this.view.placingType = null;
       this.game.setMessage('Build cancelled.');
     } else if (this.view.selectedTower) {

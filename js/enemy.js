@@ -24,12 +24,17 @@ class Enemy {
     this.burnTimer = 0;         // seconds of burn remaining
     this.burstTimer = 0;        // time within the bolt walk->dash cycle
     this.phaseTimer = 0;        // time within the wisp solid->phased cycle
+    this.poisonStacks = 0;      // venom stacks (0 = not poisoned)
+    this.poisonDpsPerStack = 0; // dps per stack (set on apply, scales with level)
+    this.poisonTimer = 0;       // seconds of poison remaining (refreshed on hit)
     this.pos = { x: -999, y: -999 }; // set on first update
     this.alive = true;
     this.leaked = false;
   }
 
   get burning() { return this.burnTimer > 0; }
+
+  get poisoned() { return this.poisonTimer > 0; }
 
   // Wisp only: true while solid (targetable). Frost slow pauses the cycle,
   // so a slowed wisp stays in whatever phase it was in.
@@ -65,6 +70,16 @@ class Enemy {
         this.hp = 0;
         this.alive = false;
         return 'burned';
+      }
+    }
+    // Venom: stacking poison DoT. Ticks even while the wisp is phased.
+    if (this.poisonTimer > 0) {
+      this.poisonTimer -= dt;
+      this.hp -= this.poisonStacks * this.poisonDpsPerStack * dt;
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.alive = false;
+        return 'burned'; // reuse the DoT-kill path (reward + splits still fire)
       }
     }
     // Bolt: advance the walk->dash cycle. Wisp: advance the phase cycle only
@@ -104,17 +119,28 @@ class Enemy {
     return false;
   }
 
-  applySlow() {
-    this.slowTimer = SLOW.duration * this.damageMultiplier('frost');
+  // ignoreResist: skip the per-flavor resistance scaling (Mortar payloads —
+  // no enemy resists mortar, so its frost/flame DoTs apply at full strength).
+  applySlow(ignoreResist = false) {
+    this.slowTimer = SLOW.duration * (ignoreResist ? 1 : this.damageMultiplier('frost'));
   }
 
   // Ignite or refresh the burn (stronger DoT wins, duration refreshed).
-  // Flame resistance scales both the dps and the duration.
-  applyBurn(dps, duration) {
+  // Flame resistance scales both the dps and the duration (unless ignored).
+  applyBurn(dps, duration, ignoreResist = false) {
     if (!this.alive) return;
-    const m = this.damageMultiplier('flame');
+    const m = ignoreResist ? 1 : this.damageMultiplier('flame');
     this.burnDps = Math.max(this.burnDps, dps * m);
     this.burnTimer = Math.max(this.burnTimer, duration * m);
+  }
+
+  // Venom: add up to `addStacks` poison stacks (capped at maxStacks), refresh
+  // the duration. Ticks through wisp phase; counters flat regen via DoT.
+  applyPoison(addStacks, maxStacks, dpsPerStack, duration) {
+    if (!this.alive) return;
+    this.poisonStacks = Math.min(maxStacks, this.poisonStacks + addStacks);
+    this.poisonDpsPerStack = Math.max(this.poisonDpsPerStack, dpsPerStack);
+    this.poisonTimer = Math.max(this.poisonTimer, duration);
   }
 
   // Fraction of the path travelled (0..1) — used for "furthest" targeting.

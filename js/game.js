@@ -52,6 +52,7 @@ class Game {
     this.towers = new Map(); // key "cx,cy" -> Tower
     this.projectiles = [];
     this.shots = [];          // in-flight railgun slugs (PiercingShot)
+    this.effects = [];        // transient visuals (chain lightning segments, etc.)
     const lvl = this.levelDef(); // per-level wave count + explicit waves
     this.waves = new WaveManager(this.levelIndex, lvl ? lvl.totalWaves : TOTAL_WAVES, lvl ? lvl.waves : null);
     this.status = 'playing'; // playing | won | lost
@@ -100,12 +101,24 @@ class Game {
     return !isPathCell(this.path, cx, cy);
   }
 
+  // Next Warden placement cost: $300 for the first, +$100 per existing Warden.
+  wardenCost() {
+    let n = 0;
+    for (const t of this.towers.values()) if (t.type === 'warden') n++;
+    return wardenPlacementCost(n);
+  }
+
   placeTower(typeName, cx, cy) {
-    const cost = TOWER_COSTS[typeName];
-    if (!cost || !isTowerAvailable(typeName, this.levelIndex)) return false;
+    const def = TOWER_TYPES[typeName];
+    // Warden: dynamic cost ($300 first, +$100 each additional).
+    const cost = def && def.dynamicCost ? this.wardenCost() : TOWER_COSTS[typeName];
+    // Roster-aware gate: unlockLevel AND the level's tower roster (Phase 29).
+    if (!cost || !isTowerAllowedOnLevel(typeName, this.levelIndex)) return false;
     if (this.money < cost || !this.canPlace(cx, cy)) return false;
     this.money -= cost;
-    this.towers.set(key(cx, cy), new Tower(typeName, cx, cy));
+    const tower = new Tower(typeName, cx, cy);
+    if (def.dynamicCost) tower.invested = cost; // sell refund tracks the real cost
+    this.towers.set(key(cx, cy), tower);
     if (this.building) this.startIfReady(); // first tower un-pauses the level
     return true;
   }
@@ -204,14 +217,25 @@ class Game {
     mendAura(this.enemies, dt);     // menders heal nearby allies (not themselves)
     this.enemies = this.enemies.filter(e => e.alive);
 
-    // Towers fire: projectiles fly; piercing towers launch a straight slug.
+    // Towers fire: homing projectiles, slugs, chain bolts, economy ticks.
     for (const t of this.towers.values()) {
-      const spec = t.update(dt, this.enemies, this.path.total);
+      const spec = t.update(dt, this.enemies, this.path.total, wardenAuraMultiplier(this.towers, t));
       if (!spec) continue;
+      if (spec.type === 'income') {
+        // Mint: +$ every interval. Income is NOT counted toward stats.moneyEarned.
+        this.money += spec.amount;
+        continue;
+      }
       SFX.play(FIRE_SOUND[t.type] || 'pew'); // per-tower fire sound
-      if (spec.pierce) this.shots.push(new PiercingShot(spec));
+      if (spec.type === 'chain') applyChainLightning(this, spec); // instant bolt + hops
+      else if (spec.type === 'mortar') this.projectiles.push(new MortarShell(spec));
+      else if (spec.pierce) this.shots.push(new PiercingShot(spec));
       else this.projectiles.push(new Projectile(spec));
     }
+
+    // Transient effects (chain lightning segments) fade out.
+    for (const fx of this.effects) fx.timer -= dt;
+    this.effects = this.effects.filter(fx => fx.timer > 0);
 
     // Railgun slugs: fly straight, damage enemies they pass through.
     for (const s of this.shots) s.update(dt, this.enemies, this);
@@ -221,7 +245,9 @@ class Game {
     this._cache = null; // enemy set may change; rebuild lookup
     for (const p of this.projectiles) {
       const impact = p.update(dt, this.enemiesById);
-      if (impact) applyImpact(impact, this.enemies, this);
+      if (!impact) continue;
+      if (p instanceof MortarShell) applyMortarBlast(impact, this.enemies, this);
+      else applyImpact(impact, this.enemies, this);
     }
     this.projectiles = this.projectiles.filter(p => p.alive);
     this.enemies = this.enemies.filter(e => e.alive);

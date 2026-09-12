@@ -122,6 +122,16 @@ function validateOptionalFields(def, problems) {
       }
     }
   }
+  // Optional tower roster: when present, ONLY these towers are buildable on
+  // the level (a restriction layer on top of the unlockLevel gate). Absent
+  // (or null) = all towers allowed — existing levels keep working unchanged.
+  if (def.towers !== undefined && def.towers !== null) {
+    if (!Array.isArray(def.towers) || !def.towers.length) {
+      problems.push('towers: must be a non-empty array of tower type keys');
+    } else if (!def.towers.every(k => typeof k === 'string' && TOWER_TYPES[k])) {
+      problems.push('towers: every entry must be a valid tower type key');
+    }
+  }
 }
 
 // Full def: name + waypoints required; optional fields checked if present.

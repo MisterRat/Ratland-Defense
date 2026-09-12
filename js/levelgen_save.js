@@ -15,7 +15,9 @@ function lgFilename(name) {
 
 // Pure-data def for a candidate (matches the levels/*.json schema). The uuid
 // is generated here — it is the dedupe key when levels are shared between
-// users; it is internal and never shown in the UI.
+// users; it is internal and never shown in the UI. Phase 29: `towers` is the
+// checked tower roster (always written — even the full list, so the file
+// records intent; absent = all towers allowed, which is what older levels get).
 function lgBuildDef(candidate, opts) {
   const def = {
     name: (candidate._name || opts.name).trim(),
@@ -26,6 +28,7 @@ function lgBuildDef(candidate, opts) {
     difficulty: LG_DIFFICULTY[opts.difficulty] ? opts.difficulty : 'normal',
     waves: buildGeneratedWaves({ enemies: opts.enemies, difficulty: opts.difficulty, waves: opts.waves }),
   };
+  if (Array.isArray(opts.towers) && opts.towers.length) def.towers = opts.towers;
   return def;
 }
 

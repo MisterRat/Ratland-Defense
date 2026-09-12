@@ -11,13 +11,108 @@ class Renderer {
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.drawGrid(ctx);
     this.drawPath(ctx, game.path);
-    for (const t of game.towers.values()) this.drawTower(ctx, t, view.selectedTower === t);
+    for (const t of game.towers.values()) {
+      this.drawTower(ctx, t, view.selectedTower === t);
+      if (t.def.ammoTypes && t.targetPoint) this.drawMortarTarget(ctx, t);
+    }
     const hoverPx = this.hoverPixel(view);
     for (const e of game.enemies) this.drawEnemy(ctx, e, hoverPx);
     for (const p of game.projectiles) this.drawProjectile(ctx, p);
     this.drawShots(ctx, game.shots);
+    this.drawEffects(ctx, game.effects);
     if (view.placingType) this.drawPlacementPreview(ctx, game, view);
-    if (view.selectedTower) this.drawRange(ctx, view.selectedTower.x, view.selectedTower.y, view.selectedTower.range);
+    if (view.aimingMortar) this.drawMortarAimPreview(ctx, game, view);
+    if (view.selectedTower) {
+      const def = TOWER_TYPES[view.selectedTower.type];
+      if (def.aura) this.drawAura(ctx, view.selectedTower.x, view.selectedTower.y, view.selectedTower.range);
+      else if (def.ammoTypes && view.selectedTower.targetPoint) {
+        // Selected Mortar: show the blast circle at the impact point.
+        this.drawRange(ctx, view.selectedTower.targetPoint.x, view.selectedTower.targetPoint.y, view.selectedTower.range);
+      } else {
+        this.drawRange(ctx, view.selectedTower.x, view.selectedTower.y, view.selectedTower.range);
+      }
+    }
+  }
+
+  // Persistent marker at a Mortar's impact point: a small crosshair.
+  drawMortarTarget(ctx, t) {
+    const { x, y } = t.targetPoint;
+    ctx.strokeStyle = 'rgba(255,215,106,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y);
+    ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8);
+    ctx.stroke();
+  }
+
+  // Mortar aim mode: blast-radius preview at the hovered cell (green = valid
+  // path cell, red X = not a path cell).
+  drawMortarAimPreview(ctx, game, view) {
+    const { cx, cy } = view.hoverCell;
+    if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return;
+    const { cell } = GRID;
+    const ok = isPathCell(game.path, cx, cy);
+    const c = cellCenter(cx, cy, cell);
+    if (ok) {
+      ctx.fillStyle = 'rgba(103,212,111,0.18)';
+      ctx.strokeStyle = 'rgba(103,212,111,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, view.aimingMortar.range, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(229,83,61,0.3)';
+      ctx.fillRect(cx * cell, cy * cell, cell, cell);
+      ctx.strokeStyle = '#e5533d';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(c.x - 10, c.y - 10); ctx.lineTo(c.x + 10, c.y + 10);
+      ctx.moveTo(c.x + 10, c.y - 10); ctx.lineTo(c.x - 10, c.y + 10);
+      ctx.stroke();
+    }
+  }
+
+  // Transient effects: chain lightning polylines and mortar explosion splashes.
+  drawEffects(ctx, effects) {
+    for (const fx of effects) {
+      if (fx.type === 'chain') {
+        const alpha = Math.max(0, fx.timer / 0.15);
+        ctx.strokeStyle = `rgba(105,240,255,${alpha})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (const s of fx.segments) {
+          ctx.moveTo(s.x1, s.y1);
+          ctx.lineTo(s.x2, s.y2);
+        }
+        ctx.stroke();
+      } else if (fx.type === 'explosion') {
+        // Mortar splash: an expanding ring + soft flash, colored by ammo type.
+        const t = 1 - Math.max(0, fx.timer / fx.duration); // 0 -> 1 over life
+        const r = fx.radius * (0.35 + 0.75 * t);
+        const alpha = Math.max(0, fx.timer / fx.duration);
+        ctx.fillStyle = hexA(fx.color, 0.22 * alpha);
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = hexA(fx.color, 0.9 * alpha);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Warden aura: a warm gold ring (distinct from the blue targeting range).
+  drawAura(ctx, x, y, range) {
+    ctx.fillStyle = 'rgba(255,215,106,0.10)';
+    ctx.strokeStyle = 'rgba(255,215,106,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, range, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
   }
 
   // Pixel position under the hovered grid cell (null when off-grid).
@@ -95,11 +190,19 @@ class Renderer {
 
   drawEnemy(ctx, e, hoverPx) {
     const slowed = e.slowTimer > 0;
-    ctx.fillStyle = slowed ? '#9fd8ff' : e.def.color;
+    // Phased (untargetable) wisps are drawn as an unfilled ring so the state
+    // reads at a glance; solid enemies keep the filled disc.
+    const phased = !!e.def.phase && !e.targetable;
     ctx.beginPath();
     ctx.arc(e.pos.x, e.pos.y, e.def.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,.45)';
+    if (!phased) {
+      // Poisoned enemies tint green (mirroring the Frost slow's blue tint);
+      // poison wins when both are active.
+      const poisoned = e.poisonTimer > 0;
+      ctx.fillStyle = poisoned ? '#9fff8f' : (slowed ? '#9fd8ff' : e.def.color);
+      ctx.fill();
+    }
+    ctx.strokeStyle = phased ? e.def.color : 'rgba(0,0,0,.45)';
     ctx.lineWidth = 2;
     ctx.stroke();
     if (e.burning) this.drawFlames(ctx, e);
@@ -163,6 +266,22 @@ class Renderer {
   }
 
   drawProjectile(ctx, p) {
+    // Mortar shells lob in an arc: draw them above their ground position and
+    // leave a small shadow on the ground to sell the height.
+    if (p instanceof MortarShell) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, 5, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3a3f47';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - p.arc, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      return;
+    }
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);

@@ -2,6 +2,10 @@
 // Source of truth: the .json files in levels/ (re-run: node tools/build_levels.mjs).
 // Data only: JSON.stringify output + a fixed registration loop. No level
 // content can execute code; every entry is re-validated at boot.
+// Play order: easier difficulty first (easy < normal < hard < nightmare),
+// then alphabetically by name. All external levels are added unlocked —
+// progress.js uses EXTERNAL_COUNT to keep them outside the win-gate.
+var EXTERNAL_COUNT = 1;
 var LEVELS_EXTERNAL = [
 {
   "name": "Riverbend",
@@ -120,6 +124,7 @@ var LEVELS_EXTERNAL = [
       startMoney: def.startMoney !== undefined ? def.startMoney : levelStartMoney(_levels.length),
       totalWaves: def.totalWaves !== undefined ? def.totalWaves : TOTAL_WAVES,
       waves: def.waves || null,
+      ...(def.towers ? { towers: def.towers } : {}), // roster restriction (absent = all allowed)
       difficulty: def.difficulty || "normal",
       uuid: def.uuid,
       source: def._source

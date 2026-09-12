@@ -51,11 +51,15 @@ function validateText(text) {
   })`, sandbox)(text);
 }
 
-// --- Collect and validate every .json in the directory (sorted = play order)
+// --- Collect and validate every .json in the directory --------------------
 // The uuid is each level's identity (dedupe key when levels are shared
 // between users). Files missing one get a fresh v4 uuid written back into
 // their .json file — only the uuid field is added, everything else is kept
 // byte-for-byte by JSON round-trip. Two files sharing a uuid = build error.
+// Play order: easier difficulty first (easy < normal < hard < nightmare),
+// then alphabetically by name — players meet the easier external levels
+// before the hard ones. (Alphabetical filename is only the read order.)
+const DIFFICULTY_RANK = { easy: 0, normal: 1, hard: 2, nightmare: 3 }; // mirrors DIFFICULTY_KEYS
 const names = readdirSync(levelsDir).filter(n => n.endsWith('.json')).sort();
 const errors = [];
 const levels = [];
@@ -82,6 +86,14 @@ for (const name of names) {
   levels.push({ def: r.def, source: name });
 }
 
+// All files validated: order them by difficulty, then name. A missing
+// difficulty means 'normal' (same default the runtime glue applies).
+levels.sort((a, b) => {
+  const ra = DIFFICULTY_RANK[a.def.difficulty || 'normal'];
+  const rb = DIFFICULTY_RANK[b.def.difficulty || 'normal'];
+  return ra !== rb ? ra - rb : a.def.name.localeCompare(b.def.name);
+});
+
 if (errors.length) {
   console.error('build_levels: FAILED — output not written:');
   for (const e of errors) console.error('  ' + e);
@@ -107,6 +119,10 @@ const out = [
   `// Source of truth: the .json files in levels/ (re-run: node tools/build_levels.mjs).`,
   '// Data only: JSON.stringify output + a fixed registration loop. No level',
   '// content can execute code; every entry is re-validated at boot.',
+  '// Play order: easier difficulty first (easy < normal < hard < nightmare),',
+  '// then alphabetically by name. All external levels are added unlocked —',
+  '// progress.js uses EXTERNAL_COUNT to keep them outside the win-gate.',
+  `var EXTERNAL_COUNT = ${levels.length};`,
   'var LEVELS_EXTERNAL = [',
   entries.join(',\n'),
   '];',
@@ -125,6 +141,7 @@ const out = [
   '      startMoney: def.startMoney !== undefined ? def.startMoney : levelStartMoney(_levels.length),',
   '      totalWaves: def.totalWaves !== undefined ? def.totalWaves : TOTAL_WAVES,',
   '      waves: def.waves || null,',
+  '      ...(def.towers ? { towers: def.towers } : {}), // roster restriction (absent = all allowed)',
   '      difficulty: def.difficulty || "normal",',
   '      uuid: def.uuid,',
   '      source: def._source',

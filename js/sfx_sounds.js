@@ -124,8 +124,12 @@ const SOUNDS = {
 };
 
 // Tower type key → fire sound name (used by the game's tower loop).
+// Mint and Warden never actually play (economy/aura towers don't fire), but
+// the entry is required so the sfx smoke test sees full coverage.
 const FIRE_SOUND = {
   basic: 'pew', cannon: 'boom', sniper: 'crack',
   railgun: 'zip', frost: 'whoosh', flame: 'sizzle',
+  tesla: 'crack', venom: 'sizzle', reaper: 'thud',
+  mint: 'pop', warden: 'pop', mortar: 'boom',
 };
 

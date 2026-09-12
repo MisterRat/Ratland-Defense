@@ -61,8 +61,32 @@ class UI {
           ? 'resists all towers'
           : 'resists ' + def.resist.map(k => TOWER_TYPES[k].name).join(', ');
         row.appendChild(res);
+      } else if (def.desc) {
+        // No resist to show: a short 2-word blurb under the name instead.
+        const d = document.createElement('span');
+        d.className = 'desc';
+        d.textContent = def.desc;
+        row.appendChild(d);
       }
       el.appendChild(row);
+    }
+  }
+
+  // Grey out legend rows for enemy types that are not active on the current
+  // map. "Active" is levelActiveEnemies(): explicit-wave levels (external /
+  // custom .json) use their own wave lists, procedural levels the unlockLevel
+  // gate. Called each frame — the classList toggle is a no-op when unchanged.
+  syncEnemyLegend() {
+    const el = document.getElementById('legend');
+    if (!el) return;
+    const active = levelActiveEnemies(this.game.levelIndex);
+    const order = ['normal', 'tank', 'hot', 'wet', 'fast', 'camo',
+                   'fission', 'spore', 'bolt', 'bulwark', 'mender', 'wisp', 'boss'];
+    let i = 0; // rows start after the "Enemies" header
+    for (const key of order) {
+      const row = el.children[++i];
+      if (!row) break;
+      row.classList.toggle('inactive', !active.has(key));
     }
   }
 
@@ -71,8 +95,10 @@ class UI {
     getLevels().forEach((lvl, i) => {
       const opt = document.createElement('option');
       opt.value = String(i);
-      // Custom levels (from the generator page) are always playable.
-      const open = i < this.progress.unlocked || !!lvl.custom;
+      // Custom levels (from the generator page) and external levels
+      // (js/levels_external.js — appended after the built-ins) are always
+      // playable; only built-in levels past progress.unlocked stay locked.
+      const open = i < this.progress.unlocked || !!lvl.custom || i >= LEVELS.length;
       const diff = (typeof LG_DIFFICULTY !== 'undefined' && LG_DIFFICULTY[lvl.difficulty])
         ? LG_DIFFICULTY[lvl.difficulty].label : 'Normal';
       opt.textContent = open
@@ -106,7 +132,9 @@ class UI {
       btn.className = 'shop-item';
       btn.dataset.type = type;
       btn.dataset.unlock = def.unlockLevel; // 1-based map level it unlocks at
-      btn.innerHTML = `<span class="name">${def.name}</span><span class="cost">${formatMoney(def.cost)}</span>
+      // Warden: dynamic cost — show the initial $300; updated each frame.
+      const costLabel = def.dynamicCost ? formatMoney(300) : formatMoney(def.cost);
+      btn.innerHTML = `<span class="name">${def.name}</span><span class="cost">${costLabel}</span>
         <div class="desc">${def.desc}</div>`;
       btn.addEventListener('click', () => this.handlers.onPickType(type));
       this.el.shop.appendChild(btn);
@@ -171,17 +199,28 @@ class UI {
   }
 
   // Highlight the shop button matching view.placingType; lock towers not yet
-  // unlocked on the current map level (label shows the level they unlock at).
+  // unlocked on the current map level (label shows the level they unlock at)
+  // and towers outside the level's roster (Phase 29: "not on this level").
   syncShopSelection() {
     const lvl = this.game.levelIndex;
     for (const btn of this.el.shop.children) {
       const def = TOWER_TYPES[btn.dataset.type];
-      const locked = !isTowerAvailable(btn.dataset.type, lvl);
+      // Warden: dynamic cost ($300 first, +$100 per existing Warden).
+      const cost = def.dynamicCost ? this.game.wardenCost() : def.cost;
+      const unlocked = isTowerAvailable(btn.dataset.type, lvl);
+      const locked = !isTowerAllowedOnLevel(btn.dataset.type, lvl);
       btn.classList.toggle('selected', !locked && btn.dataset.type === this.view.placingType);
-      btn.disabled = locked || this.game.money < def.cost;
+      btn.disabled = locked || this.game.money < cost;
       const nameEl = btn.querySelector('.name');
-      const label = locked ? `🔒 ${def.name} — Lv ${def.unlockLevel}` : def.name;
+      const label = locked
+        ? (unlocked ? `🔒 ${def.name} — not on this level` : `🔒 ${def.name} — Lv ${def.unlockLevel}`)
+        : def.name;
       if (nameEl && nameEl.textContent !== label) nameEl.textContent = label;
+      const costEl = btn.querySelector('.cost');
+      if (costEl) {
+        const costLabel = formatMoney(cost);
+        if (costEl.textContent !== costLabel) costEl.textContent = costLabel;
+      }
     }
   }
 
@@ -192,35 +231,75 @@ class UI {
     panel.style.display = 'block';
     const def = TOWER_TYPES[tower.type];
     const upCost = tower.upgradeCost();
-    const stats = `dmg ${Math.round(tower.damage)} · rng ${Math.round(tower.range)} · ${tower.fireRate.toFixed(1)}/s`;
+    // Non-combat towers (Warden aura, Mint income) show their special stats.
+    let stats;
+    if (def.aura) {
+      stats = `+${Math.round((def.aura.multiplier - 1) * 100)}% dmg · rng ${Math.round(tower.range)}`;
+    } else if (def.income) {
+      const amt = Math.round(def.income.amount * LEVEL_SCALE.damage[tower.level - 1]);
+      stats = `+${formatMoney(amt)} / ${def.income.interval}s`;
+    } else if (def.ammoTypes) {
+      const ammoDmg = Math.round(TOWER_TYPES[tower.ammo].damage * LEVEL_SCALE.damage[tower.level - 1]);
+      stats = `blast ${Math.round(tower.range)} · ${ammoDmg} dmg (${TOWER_TYPES[tower.ammo].name}) · ${tower.fireRate.toFixed(2)}/s`;
+    } else {
+      stats = `dmg ${Math.round(tower.damage)} · rng ${Math.round(tower.range)} · ${tower.fireRate.toFixed(1)}/s`;
+    }
     panel.innerHTML = '';
     const head = document.createElement('div');
     head.innerHTML = `<span class="name" style="color:${def.color}">${def.name}</span>
       <span class="cost">Lv ${tower.level}</span><div class="desc">${stats}</div>`;
     panel.appendChild(head);
 
-    // Targeting mode selector.
-    const targetRow = document.createElement('div');
-    targetRow.className = 'target-row';
-    const label = document.createElement('span');
-    label.className = 'name';
-    label.textContent = 'Target:';
-    const sel = document.createElement('select');
-    sel.className = 'tower-btn';
-    for (const [mode, labelName] of Object.entries(TARGET_MODES)) {
-      const opt = document.createElement('option');
-      opt.value = mode;
-      opt.textContent = labelName;
-      sel.appendChild(opt);
+    if (def.ammoTypes) {
+      // Mortar: an Ammo dropdown (payload flavor) instead of Target modes.
+      const ammoRow = document.createElement('div');
+      ammoRow.className = 'target-row';
+      const alabel = document.createElement('span');
+      alabel.className = 'name';
+      alabel.textContent = 'Ammo:';
+      const asel = document.createElement('select');
+      asel.className = 'tower-btn';
+      for (const a of def.ammoTypes) {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = TOWER_TYPES[a].name;
+        asel.appendChild(opt);
+      }
+      asel.value = tower.ammo; // set after the options exist (see onTargetMode note)
+      asel.addEventListener('change', () => this.handlers.onAmmo(tower, asel.value));
+      ammoRow.appendChild(alabel);
+      ammoRow.appendChild(asel);
+      panel.appendChild(ammoRow);
+
+      const retarget = document.createElement('button');
+      retarget.className = 'tower-btn';
+      retarget.textContent = tower.targetPoint ? 'Change Target' : 'Set Target (click a path tile)';
+      retarget.addEventListener('click', () => this.handlers.onMortarRetarget(tower));
+      panel.appendChild(retarget);
+    } else {
+      // Targeting mode selector.
+      const targetRow = document.createElement('div');
+      targetRow.className = 'target-row';
+      const label = document.createElement('span');
+      label.className = 'name';
+      label.textContent = 'Target:';
+      const sel = document.createElement('select');
+      sel.className = 'tower-btn';
+      for (const [mode, labelName] of Object.entries(TARGET_MODES)) {
+        const opt = document.createElement('option');
+        opt.value = mode;
+        opt.textContent = labelName;
+        sel.appendChild(opt);
+      }
+      // Set AFTER the options exist — assigning .value before the matching
+      // option is in the select is a no-op, so the dropdown would always show
+      // the first entry regardless of the tower's actual mode.
+      sel.value = tower.targetMode;
+      sel.addEventListener('change', () => this.handlers.onTargetMode(tower, sel.value));
+      targetRow.appendChild(label);
+      targetRow.appendChild(sel);
+      panel.appendChild(targetRow);
     }
-    // Set AFTER the options exist — assigning .value before the matching
-    // option is in the select is a no-op, so the dropdown would always show
-    // the first entry regardless of the tower's actual mode.
-    sel.value = tower.targetMode;
-    sel.addEventListener('change', () => this.handlers.onTargetMode(tower, sel.value));
-    targetRow.appendChild(label);
-    targetRow.appendChild(sel);
-    panel.appendChild(targetRow);
 
     if (upCost != null) {
       const up = document.createElement('button');

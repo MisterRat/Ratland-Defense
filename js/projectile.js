@@ -11,6 +11,8 @@ class Projectile {
     this.splash = spec.splash;
     this.slow = spec.slow;
     this.burn = spec.burn || null; // {dps, duration} applied to direct hit
+    this.poison = spec.poison || null; // {addStacks, maxStacks, dpsPerStack, duration}
+    this.execute = spec.execute || null; // {threshold, multiplier} — Reaper
     this.color = spec.color;
     this.alive = true;
     this.lastTargetPos = null; // fallback if target dies mid-flight
@@ -40,6 +42,7 @@ class Projectile {
         direct: (target && target.alive) ? target : null,
         damage: this.damage, sourceType: this.sourceType,
         splash: this.splash, slow: this.slow, burn: this.burn,
+        poison: this.poison, execute: this.execute,
       };
     }
     this.x += (dx / d) * step;
@@ -57,14 +60,22 @@ function applyImpact(impact, enemies, game) {
     if (e.takeDamage(dmg, src)) game.onEnemyKilled(e);
   };
 
+  // Reaper execute: at impact time, a direct target below the HP threshold
+  // takes multiplied damage (finishes off regen/heal targets).
+  let dmg = impact.damage;
+  if (impact.execute && impact.direct && impact.direct.alive) {
+    const ex = impact.execute;
+    if (impact.direct.hp / impact.direct.maxHp < ex.threshold) dmg *= ex.multiplier;
+  }
+
   if (impact.splash > 0) {
     for (const e of enemies) {
       if (!e.alive) continue;
       const d = Math.hypot(e.pos.x - impact.x, e.pos.y - impact.y);
-      if (d <= impact.splash) hit(e, impact.damage * (1 - 0.4 * (d / impact.splash)));
+      if (d <= impact.splash) hit(e, dmg * (1 - 0.4 * (d / impact.splash)));
     }
   } else if (impact.direct) {
-    hit(impact.direct, impact.damage);
+    hit(impact.direct, dmg);
   }
 
   if (impact.slow) {
@@ -78,6 +89,12 @@ function applyImpact(impact, enemies, game) {
 
   if (impact.burn && impact.direct) {
     impact.direct.applyBurn(impact.burn.dps, impact.burn.duration);
+  }
+
+  // Venom: stacking poison on the direct hit (ticks through wisp phase).
+  if (impact.poison && impact.direct && impact.direct.alive) {
+    const p = impact.poison;
+    impact.direct.applyPoison(p.addStacks, p.maxStacks, p.dpsPerStack, p.duration);
   }
 }
 

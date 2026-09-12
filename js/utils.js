@@ -34,3 +34,11 @@ function cellCenter(cx, cy, cell) {
 function formatMoney(n) {
   return '$' + Math.floor(n);
 }
+
+// '#rrggbb' + alpha (0..1) -> 'rgba(r,g,b,a)' — for fading effect colors.
+function hexA(hex, a) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}

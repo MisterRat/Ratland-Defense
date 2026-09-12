@@ -1,6 +1,9 @@
-// Level generator — page UI. Options form (enemy checkboxes, difficulty,
-// money, waves, name), Generate → 4 preview cards (canvas diagram + stats +
-// checkbox), Create / Try Again buttons. Loaded by levelgen.html only.
+// Level generator — page UI. Options form (enemy checkboxes, tower-roster
+// checkboxes, difficulty, money, waves, name), Generate → 4 preview cards
+// (canvas diagram + stats + checkbox), Create / Try Again buttons. Loaded by
+// levelgen.html only. Phase 29: the tower roster (which towers are buildable
+// on the generated level) is selected with the same checkbox pattern as the
+// enemy list, and flows into the saved def's `towers` field.
 
 const LG_DIAGRAM_CELL = 10; // px per grid cell in the preview canvas
 
@@ -57,15 +60,32 @@ function lgDrawDiagram(canvas, waypoints) {
 // Build the enemy-type checkboxes into `wrap`: every selectable type
 // (childOnly types like Spore are excluded — they only spawn from Fission),
 // in config order. Minion + Colossus start checked as sensible defaults.
+// Rows use index.html's .legend-item style (swatch + name + desc) with a
+// checkbox prepended so the player picks the enemy roster.
 function lgBuildEnemyCheckboxes(wrap, enemyTypes) {
   for (const key of Object.keys(enemyTypes).filter(k => !enemyTypes[k].childOnly)) {
+    const def = enemyTypes[key];
     const label = document.createElement('label');
+    label.className = 'legend-item';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.value = key;
     cb.checked = key === 'normal' || key === 'boss'; // sensible defaults
     label.appendChild(cb);
-    label.appendChild(document.createTextNode(enemyTypes[key].name));
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.background = def.color;
+    label.appendChild(swatch);
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = def.name;
+    label.appendChild(name);
+    if (def.desc) {
+      const d = document.createElement('span');
+      d.className = 'desc';
+      d.textContent = def.desc;
+      label.appendChild(d);
+    }
     wrap.appendChild(label);
   }
 }
@@ -75,14 +95,53 @@ function lgSelectAllEnemies(wrap, on) {
   wrap.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = on; });
 }
 
-// Read the options form -> { enemies, difficulty, startMoney, waves }.
+// Phase 29: build the tower-roster checkboxes into `wrap`: one row per tower
+// type in config order, using index.html's .shop-item style (name + cost +
+// desc) with a checkbox prepended. ALL start checked — unchecking a tower
+// removes it from the level.
+function lgBuildTowerCheckboxes(wrap, towerTypes) {
+  for (const key of Object.keys(towerTypes)) {
+    const def = towerTypes[key];
+    const label = document.createElement('label');
+    label.className = 'shop-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = key;
+    cb.checked = true; // default: every tower available on the new level
+    label.appendChild(cb);
+    // Warden: dynamic cost — show the initial $300, like index.html's shop.
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = def.name;
+    label.appendChild(name);
+    const cost = document.createElement('span');
+    cost.className = 'cost';
+    cost.textContent = def.dynamicCost ? '$300+' : '$' + Math.floor(def.cost);
+    label.appendChild(cost);
+    const d = document.createElement('div');
+    d.className = 'desc';
+    d.textContent = def.desc;
+    label.appendChild(d);
+    wrap.appendChild(label);
+  }
+}
+
+// Set every tower checkbox in `wrap` to `on` (Select All / Clear).
+function lgSelectAllTowers(wrap, on) {
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = on; });
+}
+
+// Read the options form -> { enemies, towers, difficulty, startMoney, waves }.
 // (Level names are per-candidate: each gets a silly randomized 2-word name
 // the user can edit on its preview card before Create.)
 function lgReadOptions() {
   const enemies = [];
   document.querySelectorAll('#lgEnemies input[type=checkbox]:checked').forEach(cb => enemies.push(cb.value));
+  const towers = [];
+  document.querySelectorAll('#lgTowers input[type=checkbox]:checked').forEach(cb => towers.push(cb.value));
   return {
     enemies,
+    towers,
     difficulty: document.getElementById('lgDifficulty').value,
     startMoney: Math.max(0, parseInt(document.getElementById('lgMoney').value, 10) || 0),
     waves: Math.min(50, Math.max(1, parseInt(document.getElementById('lgWaves').value, 10) || 12)),
@@ -98,6 +157,7 @@ const lgState = { candidates: [], seed: 0 };
 function lgGenerate() {
   const opts = lgReadOptions();
   if (!opts.enemies.length) { document.getElementById('lgMsg').textContent = 'Pick at least one enemy type.'; return; }
+  if (!opts.towers.length) { document.getElementById('lgMsg').textContent = 'Pick at least one tower type.'; return; }
   lgState.seed = (Math.random() * 0xFFFFFFFF) >>> 0;
   lgState.candidates = generatePathCandidates(lgState.seed);
   for (const cand of lgState.candidates) {
@@ -135,7 +195,7 @@ function lgRenderCards(opts) {
     const stats = document.createElement('div');
     stats.className = 'lg-stats';
     const diffLabel = LG_DIFFICULTY[opts.difficulty] ? LG_DIFFICULTY[opts.difficulty].label : 'Normal';
-    stats.textContent = `${cand.template} · ${diffLabel} · path ${cand.stats.length} · ${cand.stats.crossovers} crossover(s) · ${opts.waves} waves · $${opts.startMoney}`;
+    stats.textContent = `${cand.template} · ${diffLabel} · path ${cand.stats.length} · ${cand.stats.crossovers} crossover(s) · ${opts.waves} waves · $${opts.startMoney} · ${opts.towers.length}/${Object.keys(TOWER_TYPES).length} towers`;
     card.appendChild(stats);
     wrap.appendChild(card);
   });
@@ -146,6 +206,7 @@ function lgRenderCards(opts) {
 // name — is what makes each level unique, so no name uniquifying is needed.
 async function lgCreate() {
   const opts = lgReadOptions();
+  if (!opts.towers.length) { document.getElementById('lgMsg').textContent = 'Pick at least one tower type.'; return; }
   const picked = lgState.candidates.filter((c, i) => document.getElementById('lgPick' + i).checked);
   if (!picked.length) { document.getElementById('lgMsg').textContent = 'Check at least one candidate first.'; return; }
   for (const cand of picked) {
@@ -181,4 +242,14 @@ function lgInit() {
     const allChecked = [...boxes].every(cb => cb.checked);
     lgSelectAllEnemies(wrap, !allChecked);
   });
+  // Same behavior for the tower roster column (Phase 29).
+  const tWrap = document.getElementById('lgTowers');
+  const tBtn = document.getElementById('lgSelectAllTowers');
+  if (tWrap && tBtn) {
+    tBtn.addEventListener('click', () => {
+      const boxes = tWrap.querySelectorAll('input[type=checkbox]');
+      const allChecked = [...boxes].every(cb => cb.checked);
+      lgSelectAllTowers(tWrap, !allChecked);
+    });
+  }
 }

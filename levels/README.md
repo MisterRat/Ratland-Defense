@@ -10,8 +10,11 @@ inject code, and every entry is validated **again** at game boot.
 
 The first 6 levels stay hard-coded in `js/levels.js`; external levels are
 **appended** after them (external level 1 = "level 7" for best scores and the
-dropdown). Play order follows plain filename sort — no numbering convention is
-needed (ordering levels is not a level file's job).
+dropdown). External levels are **always unlocked** — no winning required — and
+play order is **by difficulty first** (easy → normal → hard → nightmare), then
+**alphabetically by name**, so you meet the easier external levels before the
+hard ones. No numbering or filename convention is needed (ordering levels is
+not a level file's job).
 
 Every level carries a **`uuid`** (a 128-bit v4 UUID) that is its identity for
 the code — the name is for humans and may repeat. The uuid is what keeps a
@@ -97,13 +100,19 @@ is what identifies a shared level.
 | `name` | string | **required** | Display name in the dropdown and banner (for humans). Must be unique across external files, but it is not the level's identity — that's the `uuid`. |
 | `uuid` | string (v4) | auto-added by the build tool if missing | The level's machine identity: a 128-bit v4 UUID. Two files sharing a uuid = build failure (a shared level loaded twice). Not shown in the game UI. |
 | `waypoints` | `[[x, y], …]` | **required** | Grid coords on the 28×18 grid. `x=-1` = spawn, `x=28` = exit. The path is a **Catmull-Rom spline through the waypoint cell centers**: straight runs stay straight, corners become smooth rounded curves (centripetal form — no overshoot). Any non-zero segment shape is allowed (axis-aligned, diagonal, or angled); the curve bows between waypoints and may round into neighboring cells. Angled crossovers (a cell walked twice in different directions) are allowed; U-turns / double-back lanes (the same consecutive cells re-walked in the same direction) are rejected. |
+| `difficulty` | string | `normal` | One of `easy, normal, hard, nightmare`. Scales procedural waves (HP/money multipliers) and sets the dropdown label; also decides play order — easier difficulty sorts first. |
 | `startMoney` | number | `levelStartMoney(index)` (table) | Money on a fresh start of this level. |
 | `totalWaves` | number | `12` | Waves to clear the level; drives "Wave n/N" and the win check. |
 | `waves` | array, optional | procedural generator | Explicit per-wave enemy lists, e.g. `[["normal","tank"], …]`. Wave *i* uses `waves[i-1]`; if the list is shorter than `totalWaves`, later waves fall back to the generator; extra entries are ignored (warned). Enemy type keys: `normal, tank, hot, wet, fast, camo, boss` — unknown keys are dropped with a console warning, never a crash. |
+| `towers` | array, optional | all towers allowed | Tower **roster**: when present, ONLY these towers are buildable on the level (a restriction layer on top of the `unlockLevel` gate). Every entry must be a valid tower type key (`basic, frost, flame, cannon, sniper, railgun, tesla, venom, reaper, mint, warden, mortar`). Absent = every unlocked tower is buildable. The level generator page writes this field from its tower checkboxes. |
 
 Notes:
-- Tower/enemy **availability is not part of the level file** — it stays driven
-  by `unlockLevel` in `js/config.js`, keyed to the level's position. By level 7
-  everything is already unlocked, so external levels can use all types.
+- Enemy **availability** is not part of the level file — it stays driven by
+  `unlockLevel` in `js/config.js`, keyed to the level's position (explicit
+  `waves` lists are the exception: they spawn exactly what they list).
+- Tower availability has two layers: the positional `unlockLevel` gate plus
+  the optional per-level `towers` roster above. By level 7 everything is
+  already unlocked, so external levels can use all types unless a roster
+  restricts them.
 - See `riverbend.json` for a complete working example (custom waves and a
   `uuid` included).

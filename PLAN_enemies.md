@@ -68,6 +68,9 @@ color:'#eef2ff', resist:['sniper'], unlockLevel:8, burst:{ dashSpeed:170, dashDu
 The cycle is independent of slow; Frost's 50% factor applies to *both* phases
 (slowed dash = 85, still faster than a normal Minion).
 
+> **Phase-28 retune:** timing changed to walk 2.5s → dash 1.0 s per 3.5 s
+> period (`dashDur: 1.0`); the def in `js/config.js` is canonical.
+
 **Counterplay:** Sniper (2.2 s cooldown + projectile travel) frequently misses
 the dash window — hence `resist:['sniper']` (level-scaled resistance on top of
 the timing problem). Cannon splash doesn't need a lock-on; Railgun's instant

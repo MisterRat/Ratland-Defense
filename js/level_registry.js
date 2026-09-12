@@ -11,6 +11,7 @@ const _levels = [];   // normalized level defs, combined order
 // Fill defaults so the rest of the game sees one uniform shape:
 // { name, waypoints, startMoney, totalWaves, waves (null = procedural),
 //   difficulty (easy/normal/hard/nightmare — drives procedural wave scaling),
+//   towers? (roster of buildable tower keys; absent = all towers allowed),
 //   uuid? (128-bit v4 — the level's identity for code/dedupe; names are for
 //         humans and may repeat) }
 function normalizeLevelDef(def, index) {
@@ -21,6 +22,7 @@ function normalizeLevelDef(def, index) {
     totalWaves: def.totalWaves !== undefined ? def.totalWaves : TOTAL_WAVES,
     waves: def.waves || null,
     difficulty: def.difficulty || 'normal',
+    ...(def.towers ? { towers: def.towers } : {}), // roster restriction (absent = all)
     ...(def.uuid ? { uuid: def.uuid } : {}), // machine identity (dedupe key)
     ...(def.custom ? { custom: true } : {}), // created on the level generator page
   };

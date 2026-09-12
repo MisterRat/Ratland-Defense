@@ -33,6 +33,33 @@ function buildWave(wave, levelIndex = 0, explicitWaves = null) {
   return composeWaveList(wave, LG_DIFFICULTY[diffKey], pool);
 }
 
+// Enemy types ACTIVE on a given level (0-based index) — the set the legend
+// greys out against. Explicit-wave levels (external/custom .json files) name
+// their roster directly, so the unlockLevel gate does NOT apply there: a type
+// is active iff it appears in some wave list, plus its split children (a
+// fission in the list means spores spawn too). Procedural levels fall back to
+// the unlockLevel gate. Unknown keys are ignored (same as buildWave).
+function levelActiveEnemies(levelIndex) {
+  const lvl = (typeof getLevel === 'function') ? getLevel(levelIndex) : null;
+  if (lvl && lvl.waves) {
+    const set = new Set();
+    for (const wave of lvl.waves) {
+      for (const type of wave) {
+        if (!ENEMY_TYPES[type]) continue;
+        set.add(type);
+        const splits = ENEMY_TYPES[type].splits;
+        if (splits && ENEMY_TYPES[splits.key]) set.add(splits.key);
+      }
+    }
+    return set;
+  }
+  const set = new Set();
+  for (const key of Object.keys(ENEMY_TYPES)) {
+    if (isEnemyAvailable(key, levelIndex)) set.add(key);
+  }
+  return set;
+}
+
 class WaveManager {
   constructor(levelIndex = 0, totalWaves = TOTAL_WAVES, explicitWaves = null) {
     this.current = 0;          // waves started so far

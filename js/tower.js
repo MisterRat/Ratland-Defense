@@ -15,6 +15,10 @@ class Tower {
     this.angle = 0;                // barrel angle, for rendering
     this.targetId = null;
     this.targetMode = 'first';     // key into TARGET_MODES
+    this.incomeTimer = this.def.income ? this.def.income.interval : 0;
+    // Mortar: selected ammo flavor + player-chosen impact point (pixel coords).
+    this.ammo = this.def.ammoDefault || null;
+    this.targetPoint = null;
   }
 
   get x() { return (this.cx + 0.5) * GRID.cell; }
@@ -56,41 +60,114 @@ class Tower {
     }
   }
 
-  // Returns a projectile spec {x, y, targetId, damage, ...} or null.
-  update(dt, enemies, pathTotal) {
+  // Returns a spec object or null. Spec types:
+  //   {type:'chain', ...}   — Tesla chain lightning (instant, no projectile)
+  //   {type:'income', ...}  — Mint economy tick
+  //   {pierce: n, ...}      — Railgun slug
+  //   {targetId, ...}       — homing projectile (default)
+  update(dt, enemies, pathTotal, auraMult = 1) {
     if (this.cooldown > 0) this.cooldown -= dt;
+
+    // Warden: passive aura tower, never fires.
+    if (this.def.aura) return null;
+
+    // Mint: economy tower — no target, ticks on its own timer.
+    if (this.def.income) {
+      this.incomeTimer -= dt;
+      if (this.incomeTimer <= 0) {
+        this.incomeTimer = this.def.income.interval;
+        const amount = Math.round(this.def.income.amount * LEVEL_SCALE.damage[this.level - 1]);
+        return { type: 'income', amount };
+      }
+      return null;
+    }
+
+    // Mortar: dumb artillery. No target acquisition — fires at the stored
+    // impact point on every cooldown tick, even with no enemy there. Until a
+    // targetPoint is chosen (after placement / via Retarget), it does not fire.
+    if (this.def.ammoTypes) {
+      if (!this.targetPoint) return null;
+      if (this.cooldown > 0) return null;
+      this.cooldown = 1 / this.fireRate;
+      const tp = TOWER_TYPES[this.ammo]; // the ammo tower defines the payload
+      const dmgScale = LEVEL_SCALE.damage[this.level - 1] * auraMult;
+      return {
+        type: 'mortar',
+        x: this.x, y: this.y,
+        tx: this.targetPoint.x, ty: this.targetPoint.y,
+        ammo: this.ammo,
+        blastRadius: this.def.range * LEVEL_SCALE.range[this.level - 1],
+        damage: tp.damage * dmgScale,
+        // Mortar payloads bypass resistance entirely: blast damage is
+        // sourceType 'mortar' (no enemy resists it), and applyMortarBlast
+        // applies the DoTs/slow with ignoreResist. The ammo still sets the
+        // DoT TYPE (burn/poison/slow) and its stats — just no resistance.
+        sourceType: 'mortar',
+        speed: this.def.projSpeed,
+        slow: tp.slow > 0 ? { factor: SLOW.factor, duration: SLOW.duration } : null,
+        burn: tp.burn ? { dps: tp.burn.dps * dmgScale, duration: tp.burn.duration } : null,
+        poison: tp.poison ? {
+          addStacks: 1, maxStacks: tp.poison.stacks,
+          dpsPerStack: tp.poison.dpsPerStack * dmgScale, duration: tp.poison.duration,
+        } : null,
+        color: this.def.color,
+      };
+    }
+
     const target = this.acquireTarget(enemies, pathTotal);
     if (!target) return null;
     this.angle = Math.atan2(target.pos.y - this.y, target.pos.x - this.x);
     if (this.cooldown > 0) return null;
     this.cooldown = 1 / this.fireRate;
-    // Piercing towers (Railgun) fire a fast straight slug instead of a homing
-    // projectile: aim direction comes from the target at fire time.
+
+    // Tesla: chain lightning — instant bolt + hops, no projectile.
+    if (this.def.chain) {
+      return {
+        type: 'chain',
+        x: this.x, y: this.y,
+        targetId: target.id,
+        damage: this.damage * auraMult,
+        chain: this.def.chain,
+        sourceType: this.type,
+        color: this.def.color,
+      };
+    }
+
+    // Piercing towers (Railgun) fire a fast straight slug.
     if (this.def.pierce) {
       return {
         x: this.x, y: this.y,
         targetId: target.id,
-        tx: target.pos.x, ty: target.pos.y, // aim direction (no homing in flight)
-        len: this.range,                    // slug flies the full tower range
-        sourceType: this.type, // for enemy resistance checks
+        tx: target.pos.x, ty: target.pos.y,
+        len: this.range,
+        sourceType: this.type,
         speed: this.def.projSpeed,
-        damage: this.damage,
+        damage: this.damage * auraMult,
         pierce: this.def.pierce,
         color: this.def.color,
       };
     }
+
+    // Homing projectile (default).
     return {
       x: this.x, y: this.y,
       targetId: target.id,
-      sourceType: this.type, // for enemy resistance checks
+      sourceType: this.type,
       speed: this.def.projSpeed,
-      damage: this.damage,
+      damage: this.damage * auraMult,
       splash: this.def.splash,
       slow: this.def.slow > 0,
       burn: this.def.burn ? {
-        dps: this.def.burn.dps * LEVEL_SCALE.damage[this.level - 1],
+        dps: this.def.burn.dps * LEVEL_SCALE.damage[this.level - 1] * auraMult,
         duration: this.def.burn.duration,
       } : null,
+      poison: this.def.poison ? {
+        addStacks: 1,
+        maxStacks: this.def.poison.stacks,
+        dpsPerStack: this.def.poison.dpsPerStack * LEVEL_SCALE.damage[this.level - 1] * auraMult,
+        duration: this.def.poison.duration,
+      } : null,
+      execute: this.def.execute || null,
       color: this.def.color,
     };
   }

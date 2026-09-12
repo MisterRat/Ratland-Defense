@@ -17,6 +17,8 @@
     padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .legend-item .swatch { width: 12px; height: 12px; border-radius: 50%; flex: none; }
   .legend-item .desc { width: 100%; }
+  /* Enemy types not active on the current map are greyed out. */
+  .legend-item.inactive { opacity: .38; }
   #side { width: 210px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
   .shop-item, .tower-btn { background: #232a35; border: 1px solid #39424f;
     color: #dfe6ee; padding: 7px 9px; border-radius: 6px; cursor: pointer; text-align: left; }
@@ -90,6 +92,9 @@
   <script src="js/level_custom.js"></script>
   <script src="js/enemy.js"></script>
   <script src="js/tower.js"></script>
+  <script src="js/tower_tesla.js"></script>
+  <script src="js/tower_warden.js"></script>
+  <script src="js/tower_mortar.js"></script>
   <script src="js/projectile.js"></script>
   <script src="js/levelgen_waves.js"></script>
   <script src="js/wave.js"></script>

@@ -8,8 +8,8 @@ let levelIndex = 0;
 const game = new Game(buildPath(levelWaypoints(levelIndex)), levelIndex);
 const renderer = new Renderer(canvas);
 
-// Shared mutable view state (hover, placement mode, selection).
-const view = { hoverCell: null, placingType: null, selectedTower: null };
+// Shared mutable view state (hover, placement mode, selection, mortar aiming).
+const view = { hoverCell: null, placingType: null, selectedTower: null, aimingMortar: null };
 
 // Restart button (shown only after a loss): restore the amount first started
 // with for this level, plus $50 per retry attempt (the bonus stacks).
@@ -25,6 +25,7 @@ function restart(retry) {
   }
   view.placingType = null;
   view.selectedTower = null;
+  view.aimingMortar = null;
   ui.renderTowerPanel(null);
   setPaused(true); // every level entry (switch, retry) starts paused
 }
@@ -76,8 +77,14 @@ const handlers = {
       game.setMessage(`${TOWER_TYPES[type].name} unlocks on level ${TOWER_TYPES[type].unlockLevel}.`);
       return;
     }
+    // Phase 29: the level's tower roster may restrict unlocked towers too.
+    if (!isTowerAllowedOnLevel(type, game.levelIndex)) {
+      game.setMessage(`${TOWER_TYPES[type].name} is not available on this level.`);
+      return;
+    }
     view.placingType = (view.placingType === type) ? null : type;
     view.selectedTower = null;
+    view.aimingMortar = null; // picking a tower ends any mortar aim session
     ui.renderTowerPanel(null);
     game.setMessage(view.placingType
       ? `Placing ${type} — click a grass tile. Right-click / Esc cancels.`
@@ -120,6 +127,17 @@ const handlers = {
     if (!TARGET_MODES[mode]) return;
     tower.targetMode = mode;
     game.setMessage(`${defName(tower)} now targets: ${TARGET_MODES[mode]}.`);
+  },
+  onAmmo(tower, ammo) {
+    const def = TOWER_TYPES[tower.type];
+    if (!def.ammoTypes || !def.ammoTypes.includes(ammo)) return;
+    tower.ammo = ammo;
+    ui.renderTowerPanel(tower); // refresh the stats line (payload damage)
+    game.setMessage(`Mortar loaded with ${TOWER_TYPES[ammo].name} shells.`);
+  },
+  onMortarRetarget(tower) {
+    view.aimingMortar = tower;
+    game.setMessage('Click a path tile to set the Mortar target. Right-click / Esc cancels.');
   },
 };
 
@@ -167,6 +185,7 @@ function frame(now) {
   renderer.draw(game, view);
   ui.updateHUD();
   ui.syncShopSelection();
+  ui.syncEnemyLegend(); // grey out enemy types not active on this map
   if (tutorial) tutorial.update(view, game);
 
   if (game.status !== lastStatus) {
