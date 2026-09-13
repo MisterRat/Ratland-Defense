@@ -18,6 +18,8 @@ class UI {
       waveMax: document.getElementById('waveMax'),
       score: document.getElementById('score'),
       nextWaveBtn: document.getElementById('nextWaveBtn'),
+      wavePreview: document.getElementById('wavePreview'),
+      showRangesBtn: document.getElementById('showRangesBtn'),
       speedBtn: document.getElementById('speedBtn'),
       pauseBtn: document.getElementById('pauseBtn'),
       muteBtn: document.getElementById('muteBtn'),
@@ -156,6 +158,7 @@ class UI {
 
   bindButtons() {
     this.el.nextWaveBtn.addEventListener('click', () => this.handlers.onSendWave());
+    if (this.el.showRangesBtn) this.el.showRangesBtn.addEventListener('click', () => this.handlers.onShowRanges());
     this.el.speedBtn.addEventListener('click', () => this.handlers.onSpeed());
     this.el.pauseBtn.addEventListener('click', () => this.handlers.onPause());
     this.bindMuteButton();
@@ -198,6 +201,62 @@ class UI {
     }
   }
 
+  // Next-wave preview: while between waves, show the upcoming wave's enemy
+  // composition (swatch + count per type) so the player can plan placement
+  // before sending. The list comes from buildWave() — the same function that
+  // spawns the wave, so the preview is always accurate. Hidden during the
+  // build phase and while a wave is in progress (no next wave to show).
+  syncWavePreview() {
+    const box = this.el.wavePreview;
+    if (!box) return;
+    const g = this.game;
+    const next = g.waves.current + 1;
+    const pending = !g.building && g.status === 'playing' &&
+      !g.waves.inProgress && next <= g.waves.totalWaves;
+    if (!pending) {
+      // visibility (not display) — the bar keeps its reserved space at the
+      // bottom of the page, so nothing shifts when it comes and goes.
+      box.style.visibility = 'hidden';
+      this._wpKey = '';
+      return;
+    }
+    // Count the composition once per wave (cheap enough to recompute, but the
+    // key avoids rebuilding the DOM every frame).
+    const list = buildWave(next, g.levelIndex, g.waves.explicitWaves);
+    const counts = {};
+    for (const t of list) counts[t] = (counts[t] || 0) + 1;
+    const key = next + ':' + Object.keys(counts).sort().map(k => k + 'x' + counts[k]).join(',');
+    if (key !== this._wpKey) {
+      this._wpKey = key;
+      box.innerHTML = '';
+      const label = document.createElement('span');
+      label.className = 'wp-label';
+      label.textContent = `Wave ${next}:`;
+      box.appendChild(label);
+      for (const [type, n] of Object.entries(counts)) {
+        const chip = document.createElement('span');
+        chip.className = 'wp-chip';
+        const swatch = document.createElement('span');
+        swatch.className = 'swatch';
+        swatch.style.background = ENEMY_TYPES[type].color;
+        chip.appendChild(swatch);
+        chip.insertAdjacentHTML('beforeend', `<span>${ENEMY_TYPES[type].name} ×${n}</span>`);
+        box.appendChild(chip);
+      }
+    }
+    box.style.visibility = 'visible';
+  }
+
+  // "Show Ranges" toggle: label reflects view.showRanges (active state).
+  syncShowRangesBtn() {
+    const btn = this.el.showRangesBtn;
+    if (!btn) return;
+    const on = !!this.view.showRanges;
+    btn.classList.toggle('selected', on);
+    const label = on ? '◎ Ranges: ON' : '◎ Ranges';
+    if (btn.textContent !== label) btn.textContent = label;
+  }
+
   // Highlight the shop button matching view.placingType; lock towers not yet
   // unlocked on the current map level (label shows the level they unlock at)
   // and towers outside the level's roster (Phase 29: "not on this level").
@@ -222,6 +281,28 @@ class UI {
         if (costEl.textContent !== costLabel) costEl.textContent = costLabel;
       }
     }
+  }
+
+  // Phase 34: next-level stat preview for the Upgrade button's tooltip,
+  // computed from LEVEL_SCALE (the same formula the Tower getters use).
+  // Mirrors the panel's stat-line branches per tower type.
+  upgradePreview(tower) {
+    const def = TOWER_TYPES[tower.type];
+    const n = tower.level + 1;
+    const ds = LEVEL_SCALE.damage[n - 1];
+    const dr = LEVEL_SCALE.range[n - 1];
+    const df = LEVEL_SCALE.fireRate[n - 1];
+    if (def.aura) {
+      return `L${n}: +${Math.round((def.aura.multiplier - 1) * 100)}% dmg · rng ${Math.round(def.range * dr)}`;
+    }
+    if (def.income) {
+      return `L${n}: +${formatMoney(Math.round(def.income.amount * ds))} / ${def.income.interval}s`;
+    }
+    if (def.ammoTypes) {
+      const ammoDmg = Math.round(TOWER_TYPES[tower.ammo].damage * ds);
+      return `L${n}: blast ${Math.round(def.range * dr)} · ${ammoDmg} dmg (${TOWER_TYPES[tower.ammo].name}) · ${(def.fireRate * df).toFixed(1)}/s`;
+    }
+    return `L${n}: dmg ${Math.round(def.damage * ds)} · rng ${Math.round(def.range * dr)} · ${(def.fireRate * df).toFixed(1)}/s`;
   }
 
   // Show/hide the panel for a selected tower.
@@ -305,6 +386,8 @@ class UI {
       const up = document.createElement('button');
       up.className = 'tower-btn';
       up.textContent = `Upgrade — ${formatMoney(upCost)}`;
+      // Phase 34: hover tooltip previewing the next level's stats.
+      up.title = this.upgradePreview(tower);
       up.disabled = this.game.money < upCost;
       up.addEventListener('click', () => this.handlers.onUpgrade(tower));
       panel.appendChild(up);

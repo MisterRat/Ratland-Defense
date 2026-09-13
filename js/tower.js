@@ -104,7 +104,9 @@ class Tower {
         // DoT TYPE (burn/poison/slow) and its stats — just no resistance.
         sourceType: 'mortar',
         speed: this.def.projSpeed,
-        slow: tp.slow > 0 ? { factor: SLOW.factor, duration: SLOW.duration } : null,
+        // Boolean convention (same as the homing path): Enemy.applySlow reads
+        // the slow stats from SLOW, so a Frost retune flows through here too.
+        slow: tp.slow > 0,
         burn: tp.burn ? { dps: tp.burn.dps * dmgScale, duration: tp.burn.duration } : null,
         poison: tp.poison ? {
           addStacks: 1, maxStacks: tp.poison.stacks,

@@ -44,6 +44,19 @@
   .target-row { display: flex; gap: 6px; align-items: center; }
   .target-row select { flex: 1; cursor: pointer; }
   #msg { font-size: 14px; color: #8b97a7; min-height: 18px; }
+  /* Next-wave preview: a full-width bar across the bottom, below the message
+     line. Enemy composition chips (swatch + count) shown while between waves
+     so the player can plan placement before sending. It reserves its space
+     permanently and only toggles VISIBILITY — display:none would shift the
+     layout every time the box comes and goes. */
+  #wavePreview { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; width: 100%; box-sizing: border-box;
+    min-height: 24px; }
+  #wavePreview .wp-label { color: #ffd76a; font-weight: 600; }
+  .wp-chip { display: flex; gap: 4px; align-items: center; background: #1d232c;
+    border-radius: 4px; padding: 2px 6px; }
+  .wp-chip .swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   /* First-time tutorial card: floats top-center over the play area. The
      wrapper is pointer-events:none so it never blocks the canvas/shop; only
      the card itself captures clicks (its buttons). */
@@ -66,6 +79,7 @@
     <span>🏆 <b id="score">0</b></span>
     <label>🗺️ <select id="levelSelect" class="tower-btn"></select></label>
     <button class="tower-btn" id="nextWaveBtn">Send Next Wave</button>
+    <button class="tower-btn" id="showRangesBtn">◎ Ranges</button>
     <button class="tower-btn" id="speedBtn">Speed: 1x</button>
     <button class="tower-btn" id="pauseBtn">▶ Resume</button>
     <button class="tower-btn" id="muteBtn">🔊 Sound</button>
@@ -80,6 +94,7 @@
     </div>
   </div>
   <div id="msg">Pick a tower, click a grass tile to build, then press ▶ Resume to start.</div>
+  <div id="wavePreview"></div>
   <!-- Classic scripts in dependency order (works from file:// without a server) -->
   <script src="js/config.js"></script>
   <script src="js/assets.js"></script>

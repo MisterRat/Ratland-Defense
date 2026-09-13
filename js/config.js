@@ -17,6 +17,14 @@ const WAYPOINTS = [
 const LEVEL_START_MONEY = [100, 100, 200, 200, 300, 350];
 // Bonus money per retry attempt after a loss (stacks: +$50, then +$100, …).
 const RETRY_BONUS = 50;
+
+// Win carry-over fraction by the TARGET level's difficulty (the level being
+// entered decides — not the one just won): easy keeps 100%, normal 75%,
+// hard 50%, nightmare 25%. Unknown/missing keys fall back to 0.75 (normal).
+const CARRYOVER_FRACTION = { easy: 1.0, normal: 0.75, hard: 0.5, nightmare: 0.25 };
+function carryoverFactor(difficultyKey) {
+  return CARRYOVER_FRACTION[difficultyKey] ?? 0.75;
+}
 const START_LIVES = 20;
 
 // Default starting money for a 0-based map level index (clamped to the table).
@@ -25,10 +33,8 @@ function levelStartMoney(levelIndex) {
   return LEVEL_START_MONEY[i];
 }
 const SELL_REFUND = 0.7;
-const MAX_LEVEL = 3;
 const TOTAL_WAVES = 12;
 const WAVE_DELAY = 6;          // seconds between auto wave starts
-const EARLY_SEND_BONUS_PER_SEC = 1; // money per second of delay skipped
 const WIN_ADVANCE_DELAY = 3.5;  // seconds to show the victory banner before auto-advancing
 
 // Tower definitions. range/damage are level-1 values; upgrades scale them.
@@ -201,7 +207,8 @@ function isEnemyAvailable(type, levelIndex) {
   return !!def && (levelIndex + 1) >= def.unlockLevel;
 }
 
-// Slow effect applied by frost towers.
+// Slow effect applied by frost towers (and Frost ammo fired by the Mortar —
+// Enemy.applySlow reads these stats, so a retune here flows through both).
 const SLOW = { factor: 0.5, duration: 1.5 };
 
 // Fire spread: a burning enemy ignites any living enemy within this distance.

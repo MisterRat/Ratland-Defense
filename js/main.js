@@ -2,14 +2,29 @@
 
 const canvas = document.getElementById('game');
 let progress = loadProgress();
+
+// Phase 34: persist the selected game speed (1x/2x/3x) across reloads,
+// mirroring the mute-persistence pattern (try/catch + validation).
+const SPEED_KEY = 'towerDefenseSpeed.v1';
+function loadSpeed() {
+  try {
+    const v = Number(localStorage.getItem(SPEED_KEY));
+    if (v === 1 || v === 2 || v === 3) return v;
+  } catch (err) { /* no storage available — default speed */ }
+  return 1;
+}
+function saveSpeed(s) {
+  try { localStorage.setItem(SPEED_KEY, String(s)); } catch (err) { /* non-persistent session */ }
+}
 // A new game always starts on level 1; unlocked levels are reached via the
 // level selector (or auto-advance after a win), never at boot.
 let levelIndex = 0;
 const game = new Game(buildPath(levelWaypoints(levelIndex)), levelIndex);
 const renderer = new Renderer(canvas);
 
-// Shared mutable view state (hover, placement mode, selection, mortar aiming).
-const view = { hoverCell: null, placingType: null, selectedTower: null, aimingMortar: null };
+// Shared mutable view state (hover, placement mode, selection, mortar aiming,
+// show-ranges toggle).
+const view = { hoverCell: null, placingType: null, selectedTower: null, aimingMortar: null, showRanges: false };
 
 // Restart button (shown only after a loss): restore the amount first started
 // with for this level, plus $50 per retry attempt (the bonus stacks).
@@ -31,27 +46,30 @@ function restart(retry) {
 }
 
 // Switch to a different level map: rebuild the path, reset everything.
-// carryOver (win auto-advance only): unspent money is ADDED to the target
-// level's default. Manual dropdown switches pass no flag — money resets to
-// that level's default (current money is abandoned).
+// carryOver (win auto-advance only): unspent money is scaled by the TARGET
+// level's difficulty (easy 100% / normal 75% / hard 50% / nightmare 25%) and
+// ADDED to that level's default. Manual dropdown switches pass no flag —
+// money resets to that level's default (current money is abandoned).
 function loadLevel(i, carryOver) {
   if (i < 0 || i >= levelCount()) return;
   // Custom levels (created on the level generator page) are always playable.
   if (i >= progress.unlocked && !isCustomLevel(i)) {
     game.setMessage('Level locked — beat the previous level first.'); return;
   }
-  const carried = carryOver ? game.money : 0; // unspent money from the level just won
+  const target = getLevel(i);
+  // The level being ENTERED sets the carry-over fraction (not the one won).
+  const carried = carryOver ? Math.floor(game.money * carryoverFactor(target.difficulty)) : 0;
   levelIndex = i;
-  game.path = buildPath(getLevel(i).waypoints);
+  game.path = buildPath(target.waypoints);
   game.levelIndex = i;
   game.retryCount = 0; // a new level: no retry history carries over
   view.placingType = null; // tower unlocks differ per map level
   restart(false); // resets state + money to this level's default
   if (carryOver) {
     game.money += carried; // carry-over is ADDED on top of the default
-    game.setMessage(`Level ${i + 1}: ${getLevel(i).name} — $${carried} carried over!`);
+    game.setMessage(`Level ${i + 1}: ${target.name} — $${carried} carried over!`);
   } else {
-    game.setMessage(`Level ${i + 1}: ${getLevel(i).name}`);
+    game.setMessage(`Level ${i + 1}: ${target.name}`);
   }
   ui.syncLevelSelect(); // dropdown must follow the map we just loaded
 }
@@ -101,8 +119,14 @@ const handlers = {
       SFX.play('horn'); // manual wave send
     }
   },
+  onShowRanges() {
+    view.showRanges = !view.showRanges;
+    ui.syncShowRangesBtn();
+    game.setMessage(view.showRanges ? 'Showing range circles for all towers.' : 'Range circles hidden (selected tower still shows its range).');
+  },
   onSpeed() {
     speed = (speed === 1) ? 2 : (speed === 2 ? 3 : 1);
+    saveSpeed(speed); // Phase 34: persist across reloads
     ui.el.speedBtn.textContent = `Speed: ${speed}x`;
   },
   onPause() {
@@ -151,7 +175,7 @@ new Input(canvas, game, view, ui);
 const tutorial = tutorialDone() ? null : new Tutorial();
 
 // Game loop: fixed-timestep simulation, rendered every animation frame.
-let speed = 1;
+let speed = loadSpeed(); // Phase 34: restored from localStorage (default 1)
 let paused = true; // levels start paused; the player resumes with ▶ / Space
 const STEP = 1 / 120; // simulation seconds per tick
 let acc = 0;
@@ -167,6 +191,8 @@ function setPaused(p) {
 // syncs the button label now that the UI exists. restart() re-pauses on every
 // later level entry (loadLevel and the retry button both funnel through it).
 setPaused(true);
+// Phase 34: the button label must reflect the RESTORED speed (the HTML hardcodes "1x").
+ui.el.speedBtn.textContent = `Speed: ${speed}x`;
 
 function frame(now) {
   let dt = (now - last) / 1000;
@@ -186,6 +212,8 @@ function frame(now) {
   ui.updateHUD();
   ui.syncShopSelection();
   ui.syncEnemyLegend(); // grey out enemy types not active on this map
+  ui.syncWavePreview(); // next wave's composition while between waves
+  ui.syncShowRangesBtn(); // keep the toggle label in sync with view.showRanges
   if (tutorial) tutorial.update(view, game);
 
   if (game.status !== lastStatus) {

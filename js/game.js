@@ -4,6 +4,11 @@ const TOWER_COSTS = Object.fromEntries(
   Object.entries(TOWER_TYPES).map(([k, v]) => [k, v.cost])
 );
 
+// Phase 34: death-animation duration (seconds). A killed enemy leaves a
+// shrinking/fading "corpse" disc for this long. Kept as its own list
+// (game.corpses), NOT game.effects — tests assert exact effects indices.
+const DEATH_ANIM = 0.15;
+
 class Game {
   constructor(path, levelIndex = 0) {
     this.path = path;
@@ -53,6 +58,7 @@ class Game {
     this.projectiles = [];
     this.shots = [];          // in-flight railgun slugs (PiercingShot)
     this.effects = [];        // transient visuals (chain lightning segments, etc.)
+    this.corpses = [];        // Phase 34: fading death discs (separate from effects)
     const lvl = this.levelDef(); // per-level wave count + explicit waves
     this.waves = new WaveManager(this.levelIndex, lvl ? lvl.totalWaves : TOTAL_WAVES, lvl ? lvl.waves : null);
     this.status = 'playing'; // playing | won | lost
@@ -166,6 +172,10 @@ class Game {
     this.stats.kills++;
     this.stats.moneyEarned += enemy.def.reward; // total income, not balance
     SFX.play('pop'); // enemy death
+    // Phase 34: death animation — a shrinking/fading disc at the kill spot.
+    // Covers every non-leak cause (hits, splash, DoT, chain, mortar, railgun)
+    // because they all funnel through here. Leaks get no corpse.
+    this.corpses.push({ x: enemy.pos.x, y: enemy.pos.y, radius: enemy.def.radius, color: enemy.def.color, timer: DEATH_ANIM });
     // Fission: split into children at the death position (any kill cause).
     if (enemy.def.splits) {
       for (let i = 0; i < enemy.def.splits.count; i++) {
@@ -236,6 +246,10 @@ class Game {
     // Transient effects (chain lightning segments) fade out.
     for (const fx of this.effects) fx.timer -= dt;
     this.effects = this.effects.filter(fx => fx.timer > 0);
+
+    // Phase 34: death discs shrink/fade out (same tick as the other visuals).
+    for (const c of this.corpses) c.timer -= dt;
+    this.corpses = this.corpses.filter(c => c.timer > 0);
 
     // Railgun slugs: fly straight, damage enemies they pass through.
     for (const s of this.shots) s.update(dt, this.enemies, this);

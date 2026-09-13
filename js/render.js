@@ -17,20 +17,30 @@ class Renderer {
     }
     const hoverPx = this.hoverPixel(view);
     for (const e of game.enemies) this.drawEnemy(ctx, e, hoverPx);
+    this.drawCorpses(ctx, game.corpses); // Phase 34: fading death discs
     for (const p of game.projectiles) this.drawProjectile(ctx, p);
     this.drawShots(ctx, game.shots);
     this.drawEffects(ctx, game.effects);
     if (view.placingType) this.drawPlacementPreview(ctx, game, view);
     if (view.aimingMortar) this.drawMortarAimPreview(ctx, game, view);
-    if (view.selectedTower) {
-      const def = TOWER_TYPES[view.selectedTower.type];
-      if (def.aura) this.drawAura(ctx, view.selectedTower.x, view.selectedTower.y, view.selectedTower.range);
-      else if (def.ammoTypes && view.selectedTower.targetPoint) {
-        // Selected Mortar: show the blast circle at the impact point.
-        this.drawRange(ctx, view.selectedTower.targetPoint.x, view.selectedTower.targetPoint.y, view.selectedTower.range);
-      } else {
-        this.drawRange(ctx, view.selectedTower.x, view.selectedTower.y, view.selectedTower.range);
-      }
+    // "Show Ranges" toggle: range circles for EVERY placed tower at once.
+    // When off, only the selected tower shows its range (no duplicate circle).
+    if (view.showRanges) {
+      for (const t of game.towers.values()) this.drawTowerRange(ctx, t);
+    } else if (view.selectedTower) {
+      this.drawTowerRange(ctx, view.selectedTower);
+    }
+  }
+
+  // One tower's range indicator, by type: Warden → gold aura ring, Mortar →
+  // blast circle at its impact point (when set), everything else → blue range.
+  drawTowerRange(ctx, t) {
+    const def = TOWER_TYPES[t.type];
+    if (def.aura) this.drawAura(ctx, t.x, t.y, t.range);
+    else if (def.ammoTypes && t.targetPoint) {
+      this.drawRange(ctx, t.targetPoint.x, t.targetPoint.y, t.range);
+    } else {
+      this.drawRange(ctx, t.x, t.y, t.range);
     }
   }
 
@@ -162,13 +172,6 @@ class Renderer {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-    // Barrel (commented out — sprites don't rotate; keep for possible reuse)
-    // ctx.strokeStyle = def.color;
-    // ctx.lineWidth = 7;
-    // ctx.beginPath();
-    // ctx.moveTo(t.x, t.y);
-    // ctx.lineTo(t.x + Math.cos(t.angle) * (r + 6), t.y + Math.sin(t.angle) * (r + 6));
-    // ctx.stroke();
     // Body: sprite if loaded, else procedural circle fallback.
     const sprite = typeof TowerAssets !== 'undefined' ? TowerAssets.get(t.type) : null;
     if (sprite) {
@@ -261,6 +264,21 @@ class Renderer {
       ctx.quadraticCurveTo(e.pos.x + f.dx - r * 0.2, e.pos.y - r * 0.4 - fh, e.pos.x + f.dx, e.pos.y - r * 0.4 - fh * 1.35);
       ctx.quadraticCurveTo(e.pos.x + f.dx + r * 0.2, e.pos.y - r * 0.4 - fh, e.pos.x + f.dx + r * 0.3, e.pos.y - r * 0.4);
       ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Phase 34: death animation — each corpse is a filled disc that scales down
+  // and fades out over its remaining life (alpha tracks the scale).
+  drawCorpses(ctx, corpses) {
+    if (!corpses || !corpses.length) return;
+    for (const c of corpses) {
+      const t = Math.max(0, c.timer / DEATH_ANIM); // 1 -> 0 over the lifetime
+      ctx.globalAlpha = t;
+      ctx.fillStyle = c.color;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.radius * t, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;

@@ -38,6 +38,9 @@ function checkPureData(value, depth, path, problems) {
 
 // Waypoint rules (same as built-in levels, plus arbitrary curves):
 //  - >=2 points, each [x, y] with integer coords
+//  - at most MAX_WAYPOINTS points (DoS guard — validation cost is
+//    super-linear in n: spline sampling is O(n·segLen) and the
+//    self-intersection check is pairwise per re-entered cell)
 //  - spawn at x=-1, exit at x=GRID.cols
 //  - rows within 0..rows-1; internal x within 0..cols-1 (spawn/exit exempt)
 //  - zero-length segments are rejected; any other segment shape is allowed
@@ -47,9 +50,17 @@ function checkPureData(value, depth, path, problems) {
 //  - the sampled spline stays inside the grid rect (one cell of slack on the
 //    left/right for the off-screen spawn/exit centers); corners must not bow
 //    outside the canvas
+const MAX_WAYPOINTS = 200; // a sane path on the 28×18 grid needs far fewer
+
 function validateWaypoints(wps, problems) {
   if (!Array.isArray(wps) || wps.length < 2) {
     problems.push('waypoints: need an array of at least 2 points');
+    return;
+  }
+  if (wps.length > MAX_WAYPOINTS) {
+    // Reject before any spline work so a hostile def cannot hang the tab or
+    // build process (M-1).
+    problems.push(`waypoints: too many points (${wps.length} > ${MAX_WAYPOINTS})`);
     return;
   }
   for (let i = 0; i < wps.length; i++) {
@@ -97,6 +108,11 @@ const DIFFICULTY_KEYS = ['easy', 'normal', 'hard', 'nightmare'];
 // UUID (v4) pattern: the level's machine identity for dedupe across users.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
+// Upper bound on totalWaves (L-1): matches the generator's own UI clamp
+// (levelgen_ui.js clamps 1..50) so hand-crafted defs can't smuggle in
+// effectively-unwinnable nonsense.
+const MAX_TOTAL_WAVES = 50;
+
 function validateOptionalFields(def, problems) {
   if (def.uuid !== undefined && (typeof def.uuid !== 'string' || !UUID_RE.test(def.uuid))) {
     problems.push('uuid: must be a lowercase v4 UUID string');
@@ -107,8 +123,8 @@ function validateOptionalFields(def, problems) {
   if (def.difficulty !== undefined && !DIFFICULTY_KEYS.includes(def.difficulty)) {
     problems.push('difficulty: must be one of ' + DIFFICULTY_KEYS.join(', '));
   }
-  if (def.totalWaves !== undefined && (!isInt(def.totalWaves) || def.totalWaves < 1)) {
-    problems.push('totalWaves: must be an integer >= 1');
+  if (def.totalWaves !== undefined && (!isInt(def.totalWaves) || def.totalWaves < 1 || def.totalWaves > MAX_TOTAL_WAVES)) {
+    problems.push(`totalWaves: must be an integer between 1 and ${MAX_TOTAL_WAVES}`);
   }
   if (def.waves !== undefined) {
     if (!Array.isArray(def.waves)) {
@@ -118,6 +134,13 @@ function validateOptionalFields(def, problems) {
         const list = def.waves[w];
         if (!Array.isArray(list) || !list.every(k => typeof k === 'string')) {
           problems.push(`waves[${w}]: must be an array of enemy type keys`);
+          continue;
+        }
+        // Whitelist against ENEMY_TYPES (L-2): fail fast at import/build with
+        // a readable problem instead of silently dropping enemies at play time.
+        const bad = list.filter(k => !ENEMY_TYPES[k]);
+        if (bad.length) {
+          problems.push(`waves[${w}]: unknown enemy type key(s): ${[...new Set(bad)].join(', ')}`);
         }
       }
     }

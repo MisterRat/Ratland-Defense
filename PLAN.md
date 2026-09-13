@@ -197,6 +197,127 @@ User-reported bugs + feature after first mortar playtest:
 - [x] Full regression from tests/
 - [x] FILE_SUMMARY.md updated
 
+## Phase 32: Security hardening (M-1, L-1, L-2) + dead code removal — DONE
+
+Closes the open findings from `SECURITY_AUDIT.md` / `REVIEW_REPORT.md` and
+the dead-code list. Files touched: `js/level_validate.js`, `js/config.js`,
+`js/tower.js`, `js/render.js` (+ tests, docs).
+
+### Security (validator caps — fail fast at import/build/boot)
+- **M-1 (Medium):** unbounded waypoint count → O(n²) validation DoS.
+  `validateWaypoints` now rejects > `MAX_WAYPOINTS` (200) with a specific
+  problem, checked BEFORE any spline work so a hostile def (localStorage or
+  levels/*.json) cannot hang the tab or the build process.
+- **L-1 (Low):** `totalWaves` unbounded. Now capped at `MAX_TOTAL_WAVES`
+  (50, matching the generator UI's own 1..50 clamp).
+- **L-2 (Low):** enemy keys in `waves` were only checked as strings. Now
+  whitelisted against `ENEMY_TYPES` — a typo like `"norma1"` fails
+  validation with "unknown enemy type key(s)" instead of silently dropping
+  enemies at play time (runtime drop-with-warn stays as defense in depth).
+
+### Dead code / single source of truth
+- Removed `EARLY_SEND_BONUS_PER_SEC` (`config.js`) — never referenced; the
+  actual early-send bonus is `Math.floor(waitTimer)` in `wave.js`.
+- Removed `MAX_LEVEL = 3` (`config.js`) — redundant; `tower.js` derives max
+  level from `UPGRADE_COST_FACTOR.length + 1` (one source of truth).
+- Removed the commented-out barrel code block in `render.js` `drawTower`
+  (sprites don't rotate; the dead `t.angle` field stays — harmless, and the
+  barrel would need it if ever re-added).
+- **Mortar-frost slow:** `tower.js` hardcoded `{ factor: SLOW.factor,
+  duration: SLOW.duration }` in the mortar spec. Now uses the same boolean
+  convention as the homing path (`slow: tp.slow > 0`) — `Enemy.applySlow`
+  reads stats from `SLOW`, so a future Frost retune flows through Mortar
+  frost ammo too (verified by smoke_mortar's SLOW.duration assertion).
+
+### Implementation steps
+- [x] js/level_validate.js: `MAX_WAYPOINTS` cap (early return before spline work), `MAX_TOTAL_WAVES` cap, `waves` enemy-key whitelist
+- [x] js/config.js: removed `MAX_LEVEL`, `EARLY_SEND_BONUS_PER_SEC`; `SLOW` comment notes the Mortar path
+- [x] js/tower.js: mortar spec `slow` → boolean convention
+- [x] js/render.js: removed commented-out barrel block
+- [x] tests/smoke_registry.mjs: 3 new bad-def cases + specific-message assertions + 100k-waypoint DoS timing check (<500ms) + 200-boundary check
+- [x] Full regression from tests/ (31 PASS / 0 FAIL)
+- [x] FILE_SUMMARY.md updated
+
+## Phase 33: Carryover by difficulty + wave preview + Show Ranges — DONE
+
+Three user-requested features:
+
+1. **Money carryover scales with the TARGET level's difficulty.** The level
+   being entered (not the one just won) determines the fraction of unspent
+   money that carries over: easy 100%, normal 75%, hard 50%, nightmare 25%.
+   Example: finish L10 with $500, L11 is hard → carry $250. `normal` (the
+   built-in mid difficulty) maps to 75% — the user's "Medium". New helper
+   `carryoverFactor(difficultyKey)` in `js/config.js`; `main.js loadLevel`
+   applies it and the message shows the scaled amount.
+2. **Next-wave preview in the HUD.** While between waves, the HUD shows the
+   upcoming wave's enemy composition (colored swatches + counts) so the player
+   can plan placement before sending. Data comes straight from `buildWave()`
+   (same function that spawns the wave — preview is always accurate). Rendered
+   into a `#wavePreview` box at the BOTTOM of the page, below the message line,
+   by `ui.syncWavePreview()`, called each frame from `main.js frame()`; hidden
+   while a wave is in progress or during the build phase (no next wave to
+   preview then) via `visibility` (not `display`) so its reserved space never
+   shifts the layout.
+3. **"Show Ranges" toggle button** in the HUD: draws range circles for EVERY
+   placed tower simultaneously (not just the selected one). Toggle state lives
+   on `view.showRanges`; `render.js draw()` iterates all towers when on, using
+   the same per-tower rules as the selected-tower branch (Mortar → blast circle
+   at its target point, Warden → aura ring, others → range circle).
+
+### Implementation steps
+- [ ] js/config.js: `carryoverFactor(difficultyKey)` (easy 1.0 / normal 0.75 / hard 0.5 / nightmare 0.25; unknown key → 0.75 fallback)
+- [ ] js/main.js: `loadLevel` scales carried money by the target level's difficulty factor; message shows scaled amount
+- [ ] index.html: `#wavePreview` box in HUD + `#showRangesBtn` toggle button (+ minimal CSS)
+- [ ] js/ui.js: `syncWavePreview()` (composition from `buildWave`, swatch+count chips, hide when no pending wave); `#showRangesBtn` binding + label sync
+- [ ] js/render.js: `draw()` — when `view.showRanges`, draw range circles for all towers (per-tower rules as selected)
+- [ ] js/main.js: `view.showRanges` field + `onShowRanges` handler; frame loop calls `ui.syncWavePreview()`
+- [ ] tests/smoke_money.mjs: carry-over checks updated to the difficulty-scaled rule
+- [ ] tests: new smoke for wave preview (composition counts match buildWave, hidden states) and Show Ranges (renderer draws N circles for N towers when on, 1 when off+selected)
+- [ ] Full regression from tests/
+- [ ] FILE_SUMMARY.md updated
+
+## Phase 34: Death animation + upgrade preview tooltip + persistent speed
+
+Three user-requested features:
+
+1. **Enemy death animation.** Enemies currently vanish the instant they die
+   (the alive-filter drops them from `game.enemies`). A killed enemy now
+   leaves a short-lived "corpse" record in a SEPARATE `game.corpses` list
+   (not `game.effects` — several tests assert exact `effects.length`/indices,
+   and corpses must not pollute that list). Each corpse: `{x, y, radius,
+   color, timer}` with `DEATH_ANIM = 0.15` s duration. The renderer draws it
+   after the enemies as a filled disc that scales down and fades out
+   (alpha = scale = timer/duration). Every non-leak kill funnels through
+   `Game.onEnemyKilled()` (direct hits, splash, burn/poison DoT, chain,
+   mortar blast, railgun) — one push there covers all causes; leaks get no
+   animation. Corpses tick + filter in `Game.update(dt)` alongside the
+   effects (so they freeze during pause/build like everything else), and are
+   cleared in `reset()`. Win check and all loops use `enemies`, so corpses
+   never block a win.
+2. **Tower upgrade preview tooltip.** Hovering the Upgrade button shows the
+   NEXT level's stats, computed from `LEVEL_SCALE` (same formula as the
+   Tower getters): `L2: dmg 19 · rng 168 · 3.0/s` for a Gun at L1
+   (12×1.6 → 19, 150×1.12 → 168, 2.5×1.2 → 3.0). Implemented as the button's
+   `title` attribute (native tooltip, zero CSS). Special towers mirror the
+   panel's stat-line branches: Warden → aura %, Mint → income amount,
+   Mortar → blast radius + payload damage + rate.
+3. **Persistent game speed.** The 1×/2×/3× speed selection now survives
+   reloads: `SPEED_KEY = 'towerDefenseSpeed.v1'` in `main.js`, loaded at boot
+   with the same try/catch + validation pattern as `MUTE_KEY` (value must be
+   one of 1/2/3, else 1), saved on every `onSpeed()` cycle. The button label
+   is set from the loaded value at boot (no more hardcoded "Speed: 1x" drift).
+
+### Implementation steps
+- [x] js/game.js: `DEATH_ANIM` const; `reset()` inits `this.corpses = []`; `onEnemyKilled()` pushes a corpse record; `update(dt)` ticks + filters corpses
+- [x] js/render.js: `drawCorpses(ctx, corpses)` — scaled/faded disc per corpse; called from `draw()` after the enemy loop
+- [x] js/ui.js: `renderTowerPanel` computes the next-level preview string (LEVEL_SCALE × def stats, per-tower-type branches) and sets it on the Upgrade button's `title`
+- [x] js/main.js: `SPEED_KEY` + `loadSpeed()`/`saveSpeed(s)` (try/catch, validate ∈ {1,2,3}); `speed` initialized from storage; boot syncs the button label; `onSpeed()` saves after cycling
+- [x] tests/smoke_phase34.mjs: corpse pushed on kill (burn DoT), not on leak; corpse ticks down and is removed after 0.15 s; renderer draws a scaled/faded arc for a live corpse and nothing for an empty list; win check unaffected by lingering corpses
+- [x] tests/smoke_phase34.mjs (tooltip section): Gun L1 title = `L2: dmg 19 · rng 168 · 3.0/s`; Warden/Mint/Mortar branches produce their special strings; max-level tower has no upgrade cost
+- [x] tests/smoke_speed.mjs: boot the REAL main.js (full index.html script list, DOM stub with localStorage) — stored 2x loads as speed 2 + label "Speed: 2x"; invalid/absent storage → 1; `handlers.onSpeed()` cycles 2→3 and persists "3"; cycle back to 1 persists
+- [x] Full regression from tests/ (all smoke tests pass)
+- [ ] FILE_SUMMARY.md updated
+
 ## Next (unstarted)
 
 - Playfield-grow bug FIXED in Phase 31 (item 4) — verified headlessly:
