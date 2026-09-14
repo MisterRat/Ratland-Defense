@@ -30,6 +30,7 @@ class Enemy {
     this.pos = { x: -999, y: -999 }; // set on first update
     this.alive = true;
     this.leaked = false;
+    this.game = null;      // Phase 35: owning Game (set at spawn) for damage tracking
   }
 
   get burning() { return this.burnTimer > 0; }
@@ -65,7 +66,9 @@ class Enemy {
     }
     if (this.burnTimer > 0) {
       this.burnTimer -= dt;
-      this.hp -= this.burnDps * dt;
+      const tick = this.burnDps * dt;
+      this.creditDamage(Math.min(tick, this.hp)); // Phase 35: no overkill credit
+      this.hp -= tick;
       if (this.hp <= 0) {
         this.hp = 0;
         this.alive = false;
@@ -75,7 +78,9 @@ class Enemy {
     // Venom: stacking poison DoT. Ticks even while the wisp is phased.
     if (this.poisonTimer > 0) {
       this.poisonTimer -= dt;
-      this.hp -= this.poisonStacks * this.poisonDpsPerStack * dt;
+      const tick = this.poisonStacks * this.poisonDpsPerStack * dt;
+      this.creditDamage(Math.min(tick, this.hp)); // Phase 35: no overkill credit
+      this.hp -= tick;
       if (this.hp <= 0) {
         this.hp = 0;
         this.alive = false;
@@ -106,11 +111,21 @@ class Enemy {
     return 1;
   }
 
+  // Phase 35: credit damage actually applied to the owning game's stats.
+  // Guarded — test enemies built without a game simply skip the credit.
+  creditDamage(amount) {
+    if (this.game && this.game.stats && amount > 0) this.game.stats.damageDealt += amount;
+  }
+
   // Returns true if this hit killed the enemy. `sourceType` is the tower key
   // that dealt the damage (undefined for unattributed damage, e.g. spread burn).
   takeDamage(amount, sourceType) {
     if (!this.alive) return false;
-    this.hp -= amount * this.damageMultiplier(sourceType);
+    const applied = amount * this.damageMultiplier(sourceType);
+    // Credit only the HP actually absorbed — overkill (the part that pushes
+    // hp below 0) is not damage dealt.
+    this.creditDamage(Math.min(applied, this.hp));
+    this.hp -= applied;
     if (this.hp <= 0) {
       this.hp = 0;
       this.alive = false;

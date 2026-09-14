@@ -44,11 +44,11 @@
   .target-row { display: flex; gap: 6px; align-items: center; }
   .target-row select { flex: 1; cursor: pointer; }
   #msg { font-size: 14px; color: #8b97a7; min-height: 18px; }
-  /* Next-wave preview: a full-width bar across the bottom, below the message
-     line. Enemy composition chips (swatch + count) shown while between waves
-     so the player can plan placement before sending. It reserves its space
-     permanently and only toggles VISIBILITY — display:none would shift the
-     layout every time the box comes and goes. */
+  /* Bottom bar: a full-width bar across the bottom, below the message line.
+     Phase 35: ALWAYS visible — it shows the next-wave enemy composition chips
+     (swatch + count) while between waves so the player can plan placement,
+     and falls back to a Game Stats readout whenever no wave is pending. It
+     reserves its space permanently, so nothing shifts when content swaps. */
   #wavePreview { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
     background: #232a35; border: 1px solid #39424f; border-radius: 6px;
     padding: 4px 8px; font-size: 12px; width: 100%; box-sizing: border-box;

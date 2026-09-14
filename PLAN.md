@@ -318,6 +318,53 @@ Three user-requested features:
 - [x] Full regression from tests/ (all smoke tests pass)
 - [ ] FILE_SUMMARY.md updated
 
+## Phase 35 — Game stats tracking + always-visible bottom bar
+
+**Goal:** `game.stats` grows five new fields — total damage dealt, towers built,
+towers sold, enemies leaked, and a DoT-kill vs direct-kill split — and the
+bottom `#wavePreview` bar is ALWAYS visible: it shows the Wave Preview when a
+next wave is pending, otherwise it falls back to a Game Stats readout.
+
+### Design
+1. **Damage tracking** — every damage path already funnels through
+   `Enemy.takeDamage(amount, sourceType)` (projectile impact + splash,
+   piercing slugs, Tesla chain, mortar blast), so the counter lives there:
+   the enemy stores its `game` reference (set at spawn in `Game.update`,
+   split children in `onEnemyKilled`) and `takeDamage` adds the EFFECTIVE
+   damage (after resistance) to `game.stats.damageDealt` — only while alive,
+   so overkill is never counted. DoT ticks (burn/poison in `Enemy.update`)
+   also credit `damageDealt` at their actual tick amount. Tests that build
+   bare enemies (no game) are unaffected — the guard skips when `game` is
+   unset.
+2. **Stats fields** — `reset()` initializes `stats = { kills, moneyEarned,
+   wavesSurvived, damageDealt: 0, towersBuilt: 0, towersSold: 0, leaked: 0,
+   dotKills: 0, directKills: 0 }`. Increment points:
+   - `towersBuilt` in `placeTower` (after the money check passes);
+   - `towersSold` in `sellTower`;
+   - `leaked` in `onEnemyLeaked`;
+   - `dotKills` vs `directKills` in `onEnemyKilled`: a kill is DoT when the
+     enemy still has an active burn or poison (`burnTimer > 0 ||
+     poisonTimer > 0`) — every direct-kill path (impact/slug/chain/mortar)
+     calls `onEnemyKilled` with the DoTs already applied, so the flag is
+     reliable; DoT deaths arrive via the `'burned'` state and still have
+     their timers set. The split covers every non-leak kill, so
+     `dotKills + directKills === kills`.
+3. **Always-visible bar** — `UI.syncWavePreview()` no longer hides the bar.
+   When a next wave is pending it renders the existing composition chips;
+   otherwise it renders a stats readout (label "Stats:" + one chip per stat:
+   damage dealt, towers built, towers sold, leaked, DoT kills, direct kills)
+   with the same key-based rebuild so the DOM only updates when a value
+   changes. The bar keeps its reserved space in both modes (no layout shift).
+
+### Implementation steps
+- [x] js/game.js: `stats` gains `damageDealt`, `towersBuilt`, `towersSold`, `leaked`, `dotKills`, `directKills`; `placeTower`/`sellTower`/`onEnemyLeaked`/`onEnemyKilled` increment them; spawn sites set `enemy.game = this`
+- [x] js/enemy.js: `takeDamage` credits effective damage to `game.stats.damageDealt` (guarded by `this.game`); burn/poison DoT ticks credit their tick amount — all three credit paths clamp to HP absorbed (`Math.min(tick, hp)`) so overkill is never counted
+- [x] js/ui.js: `syncWavePreview()` always visible — wave chips when pending, else a "Stats:" readout of the six new fields
+- [x] tests/smoke_stats.mjs: damageDealt exactness (resistance-scaled), towersBuilt/Sold, leaked, DoT vs direct split across kill causes
+- [x] Update tests/smoke_wave_preview.mjs: hidden-state assertions → stats-fallback assertions
+- [x] Full regression from tests/ (all 35 smoke tests pass)
+- [x] FILE_SUMMARY.md updated
+
 ## Next (unstarted)
 
 - Playfield-grow bug FIXED in Phase 31 (item 4) — verified headlessly:

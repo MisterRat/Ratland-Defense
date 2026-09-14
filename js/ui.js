@@ -201,11 +201,12 @@ class UI {
     }
   }
 
-  // Next-wave preview: while between waves, show the upcoming wave's enemy
+  // Bottom bar: while between waves it shows the upcoming wave's enemy
   // composition (swatch + count per type) so the player can plan placement
   // before sending. The list comes from buildWave() — the same function that
-  // spawns the wave, so the preview is always accurate. Hidden during the
-  // build phase and while a wave is in progress (no next wave to show).
+  // spawns the wave, so the preview is always accurate. Phase 35: the bar is
+  // ALWAYS visible — when no next wave is pending (build phase, wave in
+  // progress, after the final wave) it falls back to a Game Stats readout.
   syncWavePreview() {
     const box = this.el.wavePreview;
     if (!box) return;
@@ -213,13 +214,8 @@ class UI {
     const next = g.waves.current + 1;
     const pending = !g.building && g.status === 'playing' &&
       !g.waves.inProgress && next <= g.waves.totalWaves;
-    if (!pending) {
-      // visibility (not display) — the bar keeps its reserved space at the
-      // bottom of the page, so nothing shifts when it comes and goes.
-      box.style.visibility = 'hidden';
-      this._wpKey = '';
-      return;
-    }
+    box.style.visibility = 'visible'; // always visible (Phase 35)
+    if (!pending) { this.renderStatsBar(box); return; }
     // Count the composition once per wave (cheap enough to recompute, but the
     // key avoids rebuilding the DOM every frame).
     const list = buildWave(next, g.levelIndex, g.waves.explicitWaves);
@@ -244,7 +240,35 @@ class UI {
         box.appendChild(chip);
       }
     }
-    box.style.visibility = 'visible';
+  }
+
+  // Phase 35: the bar's fallback content — a Game Stats readout (one chip per
+  // stat). Keyed on the values so the DOM only rebuilds when something moves.
+  renderStatsBar(box) {
+    const s = this.game.stats;
+    const dmg = Math.round(s.damageDealt);
+    const key = `stats:${dmg}|${s.towersBuilt}|${s.towersSold}|${s.leaked}|${s.dotKills}|${s.directKills}`;
+    if (key === this._wpKey) return;
+    this._wpKey = key;
+    box.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'wp-label';
+    label.textContent = 'Stats:';
+    box.appendChild(label);
+    const items = [
+      [`⚔ ${dmg.toLocaleString('en-US')} dmg`, ''],
+      [`🏗 ${s.towersBuilt} built`, ''],
+      [`💸 ${s.towersSold} sold`, ''],
+      [`💀 ${s.leaked} leaked`, ''],
+      [`🔥 ${s.dotKills} DoT kills`, ''],
+      [`⚡ ${s.directKills} direct kills`, ''],
+    ];
+    for (const [text] of items) {
+      const chip = document.createElement('span');
+      chip.className = 'wp-chip';
+      chip.insertAdjacentHTML('beforeend', `<span>${text}</span>`);
+      box.appendChild(chip);
+    }
   }
 
   // "Show Ranges" toggle: label reflects view.showRanges (active state).

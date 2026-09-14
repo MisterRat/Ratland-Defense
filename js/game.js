@@ -66,7 +66,11 @@ class Game {
     this.winTimer = 0;       // countdown to auto-advance after a win (real seconds)
     this.message = '';
     this.messageTimer = 0;
-    this.stats = { kills: 0, moneyEarned: 0, wavesSurvived: 0 }; // score inputs
+    // Score inputs (kills/moneyEarned/wavesSurvived) plus Phase-35 tracking:
+    // damageDealt (effective, post-resistance), towers built/sold, enemies
+    // leaked, and the DoT-vs-direct kill split (dotKills + directKills === kills).
+    this.stats = { kills: 0, moneyEarned: 0, wavesSurvived: 0,
+      damageDealt: 0, towersBuilt: 0, towersSold: 0, leaked: 0, dotKills: 0, directKills: 0 };
     this._cache = null;
   }
 
@@ -125,6 +129,7 @@ class Game {
     const tower = new Tower(typeName, cx, cy);
     if (def.dynamicCost) tower.invested = cost; // sell refund tracks the real cost
     this.towers.set(key(cx, cy), tower);
+    this.stats.towersBuilt++; // Phase 35: only counts successful placements
     if (this.building) this.startIfReady(); // first tower un-pauses the level
     return true;
   }
@@ -163,6 +168,7 @@ class Game {
   sellTower(tower) {
     this.money += tower.sellValue();
     this.towers.delete(key(tower.cx, tower.cy));
+    this.stats.towersSold++; // Phase 35
   }
 
   // --- events from systems --------------------------------------------
@@ -170,6 +176,12 @@ class Game {
   onEnemyKilled(enemy) {
     this.money += enemy.def.reward;
     this.stats.kills++;
+    // Phase 35: DoT vs direct split. A kill is DoT when the enemy still has
+    // an active burn or poison — DoT deaths arrive via the 'burned' state
+    // (timers set), and every direct-kill path (impact, slug, chain, mortar)
+    // calls here with the DoTs already applied, so the flag is reliable.
+    if (enemy.burnTimer > 0 || enemy.poisonTimer > 0) this.stats.dotKills++;
+    else this.stats.directKills++;
     this.stats.moneyEarned += enemy.def.reward; // total income, not balance
     SFX.play('pop'); // enemy death
     // Phase 34: death animation — a shrinking/fading disc at the kill spot.
@@ -182,12 +194,14 @@ class Game {
         const child = new Enemy(enemy.def.splits.key, this.waves.current, this.levelIndex);
         child.distance = enemy.distance; // exact path position of the parent
         child.pos = { x: enemy.pos.x, y: enemy.pos.y };
+        child.game = this; // Phase 35: damage tracking needs the game ref
         this.enemies.push(child);
       }
     }
   }
 
   onEnemyLeaked(enemy) {
+    this.stats.leaked++; // Phase 35
     this.lives -= enemy.def.livesCost;
     SFX.play('thud'); // enemy leaked past the end
     if (this.lives <= 0) {
@@ -213,7 +227,9 @@ class Game {
           SFX.play('horn'); // auto wave start
         }
       } else {
-        this.enemies.push(new Enemy(s, this.waves.current, this.levelIndex));
+        const e = new Enemy(s, this.waves.current, this.levelIndex);
+        e.game = this; // Phase 35: damage tracking needs the game ref
+        this.enemies.push(e);
       }
     }
 
