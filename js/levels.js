@@ -30,7 +30,8 @@ const LEVELS = [
     ],
   },
   {
-    name: 'Switchback',
+    name: 'Zigzag', // renamed from "Switchback" (Phase 36): a 3-bend zigzag,
+    // not a true switchback — the name now belongs to the generator template.
     difficulty: 'normal',
     waypoints: [
       [-1, 9], [8, 9], [8, 3], [15, 3], [15, 14], [21, 14], [21, 6], [28, 6],

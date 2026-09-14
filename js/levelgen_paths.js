@@ -1,5 +1,6 @@
 // Level generator — path module. Seeded RNG + Bloons/Kingdom-Rush-inspired
-// path templates (arc, sbend, loop, weave, crossroads). Templates emit
+// path templates (arc, sbend, loop, weave, crossroads, switchback, spiral).
+// Templates emit
 // axis-aligned control points; the Catmull-Rom spline in js/path.js bows them
 // into real curves (corners round, long offsets become arcs). Every candidate
 // is validated against the game's own rules (spawn x=-1, exit x=cols, no
@@ -108,7 +109,39 @@ function tplCrossroads(rng) {
           [x3, rC], [x3, rE], [x4, rE], [x4, rD], [LG_COLS, rD]];
 }
 
-const LG_TEMPLATES = { arc: tplArc, sbend: tplSBend, loop: tplLoop, weave: tplWeave, crossroads: tplCrossroads };
+// Switchback (Bloons style): the path doubles back on itself — right along a
+// top lane, left along the next lane, right again, and out. Four full-width
+// lanes 3–4 rows apart (spline corners round ~1 cell inward, so parallel runs
+// stay clear). No crossovers; a long path with wide buildable pockets between
+// the turn columns.
+function tplSwitchback(rng) {
+  const r1 = rngInt(rng, 1, 2); // top lane
+  const s1 = rngInt(rng, 3, 4), s2 = rngInt(rng, 3, 4), s3 = rngInt(rng, 3, 4);
+  const r2 = r1 + s1, r3 = r2 + s2, r4 = r3 + s3; // r4 <= 14 < rows-1
+  const xR = rngInt(rng, 19, 24); // right turn column (shared by both right turns)
+  const xL = rngInt(rng, 3, 7); // left turn column
+  return [[-1, r1], [xR, r1], [xR, r2], [xL, r2], [xL, r3], [xR, r3], [xR, r4], [LG_COLS, r4]];
+}
+
+// Spiral: a rectangular ring that spirals back inward and exits — right along
+// the top band, down the right side, left along the bottom, up the left side
+// to an inner lane, then rightward on the inner lane straight to the exit.
+// The inner-lane run crosses the right column once (perpendicular crossover
+// at (xR, rC)). Constraints that keep the sampled spline legal:
+//  - lanes are >=3 rows apart, so corner bows (~1 cell deep, up to ~65px on
+//    long runs) can never reach a parallel run — no same-direction double-walk;
+//  - rA >= 4 leaves headroom above the entry run for the top-right bow;
+//  - rB <= 15 keeps the bottom corners' downward bow inside the grid.
+function tplSpiral(rng) {
+  const rA = rngInt(rng, 4, 6); // entry row (top band)
+  const xR = rngInt(rng, 20, 24); // right side column
+  const rB = rngInt(rng, 13, 15); // bottom row (off the grid edge)
+  const xL = rngInt(rng, 3, 7); // left side column
+  const rC = rngInt(rng, rA + 3, rB - 3); // inner lane row (strictly inside the ring)
+  return [[-1, rA], [xR, rA], [xR, rB], [xL, rB], [xL, rC], [LG_COLS, rC]];
+}
+
+const LG_TEMPLATES = { arc: tplArc, sbend: tplSBend, loop: tplLoop, weave: tplWeave, crossroads: tplCrossroads, switchback: tplSwitchback, spiral: tplSpiral };
 
 // Stats for a candidate: path length (cells), crossover count, buildable cells.
 // Sample-based: the shared walkPathCells walker (spline samples) supplies both
