@@ -50,11 +50,11 @@ Each file is pure data — JSON, never code. Either:
 |---|---|---|---|
 | `name` | string | **required** | Display name in the dropdown and banner (for humans). May repeat — it is not the level's identity. |
 | `uuid` | string (v4) | auto-stamped on import if missing | The level's machine identity: a 128-bit v4 UUID. Importing a file whose uuid you already have is skipped (a shared level loaded twice). Not shown in the game UI. |
-| `waypoints` | `[[x, y], …]` | **required** | Grid coords on the 28×18 grid. `x=-1` = spawn, `x=28` = exit. The path is a **Catmull-Rom spline through the waypoint cell centers**: straight runs stay straight, corners become smooth rounded curves (centripetal form — no overshoot). Any non-zero segment shape is allowed (axis-aligned, diagonal, or angled); the curve bows between waypoints and may round into neighboring cells. Angled crossovers (a cell walked twice in different directions) are allowed; U-turns / double-back lanes (the same consecutive cells re-walked in the same direction) are rejected. |
+| `waypoints` | `[[x, y], ...]` | **required** | Grid coords on the 28×18 grid. `x=-1` = spawn, `x=28` = exit. The path is a **Catmull-Rom spline through the waypoint cell centers**: straight runs stay straight, corners become smooth rounded curves (centripetal form — no overshoot). Any non-zero segment shape is allowed (axis-aligned, diagonal, or angled); the curve bows between waypoints and may round into neighboring cells. Angled crossovers (a cell walked twice in different directions) are allowed; U-turns / double-back lanes (the same consecutive cells re-walked in the same direction) are rejected. |
 | `difficulty` | string | `normal` | One of `easy, normal, hard, nightmare`. Scales procedural waves (HP/money multipliers) and sets the dropdown label. |
 | `startMoney` | number | table default | Money on a fresh start of this level. |
 | `totalWaves` | number | `12` | Waves to clear the level; drives "Wave n/N" and the win check (max 50). |
-| `waves` | array, optional | procedural generator | Explicit per-wave enemy lists, e.g. `[["normal","tank"], …]`. Wave *i* uses `waves[i-1]`; if the list is shorter than `totalWaves`, later waves fall back to the generator; extra entries are ignored (warned). Enemy type keys: `normal, tank, hot, wet, fast, camo, fission, spore, bolt, bulwark, mender, wisp, boss` — unknown keys are dropped with a console warning, never a crash. |
+| `waves` | array, optional | procedural generator | Explicit per-wave enemy lists, e.g. `[["normal","tank"], ...]`. Wave *i* uses `waves[i-1]`; if the list is shorter than `totalWaves`, later waves fall back to the generator; extra entries are ignored (warned). Enemy type keys: `normal, tank, hot, wet, fast, camo, fission, spore, bolt, bulwark, mender, wisp, boss` — unknown keys are dropped with a console warning, never a crash. |
 | `towers` | array, optional | all towers allowed | Tower **roster**: when present, ONLY these towers are buildable on the level (a restriction layer on top of the `unlockLevel` gate). Every entry must be a valid tower type key (`basic, frost, flame, cannon, sniper, railgun, tesla, venom, reaper, mint, warden, mortar`). Absent = every unlocked tower is buildable. The level generator page writes this field from its tower checkboxes. |
 
 ## Security notes
@@ -66,7 +66,8 @@ Each file is pure data — JSON, never code. Either:
 - Every entry is re-validated at game boot when the store is loaded, so the
   runtime trust boundary holds even if a stored def were tampered with.
 
-Notes:
+## Notes
+
 - Enemy **availability** is not part of the level file — it stays driven by
   `unlockLevel` in `js/config.js`, keyed to the level's position (explicit
   `waves` lists are the exception: they spawn exactly what they list).
