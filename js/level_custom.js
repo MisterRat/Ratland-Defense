@@ -119,6 +119,42 @@ function exportCustomLevels() {
   return JSON.stringify(getCustomLevels(), null, 2);
 }
 
+// Filename for a single-level export: sanitized name + .json (e.g.
+// "Soggy_Walrus.json"). No level number — ordering is not the store's job.
+function lgFilename(name) {
+  const safe = String(name).trim().replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'level';
+  return safe + '.json';
+}
+
+// Match a stored def by `id`: the level's uuid, its full store id
+// (customLevelId — 'name:<name>' for legacy uuid-less defs), or its bare name.
+function findCustomLevel(id) {
+  return getCustomLevels().find(d => customLevelId(d) === id || d.name === id);
+}
+
+// One stored level as a pretty-printed JSON object (single-file export).
+// Returns null when no stored level matches.
+function exportLevelDef(id) {
+  const def = findCustomLevel(id);
+  return def ? JSON.stringify(def, null, 2) : null;
+}
+
+// Delete one stored level by uuid (or name for legacy uuid-less defs):
+// removes it from the store AND unregisters it from the in-memory registry.
+// Returns the removed def, or null when nothing matched.
+function deleteCustomLevel(id) {
+  const list = getCustomLevels();
+  const i = list.findIndex(d => customLevelId(d) === id || d.name === id);
+  if (i < 0) return null;
+  const [def] = list.splice(i, 1);
+  try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(list)); } catch (err) { /* non-persistent */ }
+  // Unregister from the live registry (getLevels() returns the _levels array).
+  const levels = getLevels();
+  const j = levels.findIndex(l => l.uuid ? l.uuid === def.uuid : !l.uuid && l.name === def.name);
+  if (j >= 0) levels.splice(j, 1);
+  return def;
+}
+
 // Boot-time registration: validate + register each saved def, skipping levels
 // already in the registry by uuid (a later import must never double-register).
 // Returns the number of levels registered.

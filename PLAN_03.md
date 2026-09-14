@@ -1,0 +1,494 @@
+# PLAN — Tower Defense (continuation, part 3)
+
+Part 1: `PLAN_01.md` (Phases 1–12) · Part 2: `PLAN_02.md` (Phases 13–24). 
+This file continues milestone tracking from Phase 25 onward. 
+Hard rules per AGENTS.md: modular code, ≤500 lines per file, plan-first, frequent saves.
+
+## Phase 25: Five new tower types (Tesla, Venom, Reaper, Mint, Warden) — DONE
+
+Design + review record: `PLAN_towers.md` (**APPROVED & IMPLEMENTED**).
+Review decisions: all five unlock at level 7 (external levels only, matching
+the Phase-19 enemy cadence); Glacier dropped (too similar to Frost); Mint
+income excluded from `stats.moneyEarned` (explained in its shop desc); Warden
+uses a dynamic cost ($300 first, +$100 per existing Warden).
+
+### Implementation steps
+- [x] PLAN_towers.md approved by user (5 of 6; Glacier dropped)
+- [x] js/config.js: five new `TOWER_TYPES` entries (unlockLevel 7) + `wardenPlacementCost(existingCount)`
+- [x] js/tower.js: chain/income/aura branches in `update(dt, enemies, pathTotal, auraMult)`; spec pass-through for poison/execute; `invested` cost tracking
+- [x] js/projectile.js: impact handling for poison (Venom) and execute (Reaper)
+- [x] js/enemy.js: `poisonStacks`/`poisonDpsPerStack`/`poisonTimer` + tick in `update()`
+- [x] js/game.js: chain dispatch, Mint income credit (money only), Warden aura multipliers via new helpers `js/tower_tesla.js` / `js/tower_warden.js`; `wardenCost()`; `placeTower` dynamic-cost special case; `effects` list
+- [x] js/sfx_sounds.js: `FIRE_SOUND` entries for all five (Warden = benign, never triggered — smoke_sfx requires every type)
+- [x] js/render.js: chain-lightning polylines + Warden gold aura ring
+- [x] js/ui.js: Warden live next-price in shop; aura/income stat lines in tower panel
+- [x] assets/: five new tower PNGs (via tests/gen_tower_sprites.py)
+- [x] tests/smoke_tower_unlock.mjs: availability table → 11 towers at level 7, placement count 6 → 11, Warden dynamic-cost check
+- [x] tests/smoke_new_towers.mjs: per-tower def shape, unlock gate, mechanic assertions (7 checks)
+- [x] Full regression from tests/ (28 PASS / 0 FAIL)
+- [x] FILE_SUMMARY.md updated
+
+## Phase 27: Mortar tower (area-effect artillery, ammo-selectable payload) — DONE
+
+Design + review record: `PLAN_mortar.md` (**IMPLEMENTED**). Review decisions:
+$400 cost (most expensive), L7 unlock, slowest fire rate in the roster
+(0.25/s = 4s cooldown), blast radius 100px base (×1/1.12/1.25 by level),
+player picks a **path cell** as the fixed impact point ("Change Target"
+re-enters aim mode), fires every cooldown even with no enemies in the area,
+and carries no intrinsic damage — the payload is the selected ammo tower's own
+stats (Cannon/Flame/Frost/Tesla/Venom) × level scale × Warden aura, with the
+ammo key as `sourceType` so per-flavor resistance applies. Tesla ammo draws
+chain lines between in-blast enemies only (no outward hops).
+
+### Implementation steps
+- [x] PLAN_mortar.md approved by user
+- [x] js/config.js: `TOWER_TYPES.mortar` (cost 400, L7, `ammoDefault`/`ammoTypes`, `range` = blast radius); boss `resist` list → 12 entries
+- [x] js/tower.js: mortar branch in `update()` — no target acquisition; fires `{type:'mortar'}` spec at stored `targetPoint` on cooldown; payload from ammo def × level scale × aura
+- [x] js/tower_mortar.js (new): `MortarShell` fixed-point lobbed flight + `applyMortarBlast` (splash falloff, per-flavor DoTs on all in-blast survivors, Tesla chain lines)
+- [x] js/game.js: `mortar` spec dispatch → `MortarShell`; detonation routes to `applyMortarBlast`
+- [x] js/input.js + js/main.js: aim mode (path-cell validation, auto-aim after placement, "Change Target" handler, ammo reload handler)
+- [x] js/ui.js: Ammo dropdown + target button in the Mortar panel; blast/ammo stat line
+- [x] js/render.js: target crosshair, aim preview (green circle / red X), lobbed shell drawing
+- [x] js/sfx_sounds.js: `FIRE_SOUND.mortar = 'boom'`; assets/mortar.png (via tests/gen_tower_sprites.py); index.html script tag
+- [x] tests/smoke_mortar.mjs: 7 checks (config, unlock, firing rule, blast falloff, per-ammo payloads, per-flavor resistance, level scaling + Warden aura + retarget)
+- [x] All game.js-bundling tests patched to include js/tower_mortar.js; smoke_tower_unlock → 12 towers; smoke_railgun "most expensive" assertion dropped
+- [x] Full regression from tests/ (29 PASS / 0 FAIL)
+- [x] FILE_SUMMARY.md updated
+
+## Phase 28: Enemy tweaks — Wisp phased visual + Bolt dash timing — DONE
+
+Two small balance/visual changes requested by the user:
+1. **Wisp state visual:** while phased (untargetable) the Wisp is drawn as an
+   unfilled circle (ring only) instead of a solid disc; solid phase unchanged.
+2. **Bolt dash timing:** walk 2.5s → dash 1.0s, every 3.5s period
+   (`burst: { dashSpeed: 170, dashDur: 1.0, period: 3.5 }`; was dashDur 0.8 /
+   walk 2.7s). Dash still lands at the END of each period; slow scales both.
+
+### Implementation steps
+- [x] js/config.js: bolt `burst.dashDur` 0.8 → 1.0 (period stays 3.5)
+- [x] js/render.js: `drawEnemy` draws phased wisps as an unfilled ring (no fill)
+- [x] tests/smoke_burst.mjs: cycle distance 271 → 295 px, speed-switch cases for the new 2.5s/1.0s windows
+- [x] tests/smoke_phase.mjs: new render check — phased wisp draws no fill (ring), solid wisp fills
+- [x] Full regression from tests/
+- [x] FILE_SUMMARY.md updated
+
+## Phase 29: Per-level tower availability (generator selects the roster) — DONE
+
+User request (two parts):
+1. The level generator should let the user select **which towers are available
+   on a level**, including a **Select All** button.
+2. `levelgen.html` should be styled like `index.html`: a **left column for
+   enemies** and a **right column for towers** (mirroring the legend/shop
+   layout), with **checkboxes** to select each entry.
+
+### Design
+- **New optional level-def field `towers`**: an array of tower type keys
+  (e.g. `["basic", "frost", "cannon"]`). Present = only those towers are
+  buildable on that level; **absent = all towers allowed** (backward
+  compatible: built-ins, existing external levels, and saved custom levels
+  keep working unchanged). The positional `unlockLevel` gate still applies
+  first — the roster is a restriction layer on top, exactly analogous to how
+  explicit `waves` lists bypass the enemy `unlockLevel` gate.
+- **Validation** (`js/level_validate.js`): when `towers` is present it must be
+  an array of strings, each a valid `TOWER_TYPES` key. (The pure-data gate
+  already accepts string arrays; only key-validity is new.)
+- **Registry** (`js/level_registry.js`): `normalizeLevelDef` passes `towers`
+  through (absent stays absent).
+- **Availability helper** (`js/config.js`): `isTowerAllowedOnLevel(type,
+  levelIndex)` = `isTowerAvailable(type, levelIndex)` AND (level has no
+  `towers` field OR the field contains `type`). Single source of truth for the
+  new layer; reads the registry via `getLevel(levelIndex)`.
+- **Enforcement** (three sites, mirroring the existing unlock gate):
+  - `js/game.js` `placeTower`: gate on `isTowerAllowedOnLevel` (defense in
+    depth — the UI also disables the button).
+  - `js/main.js` `onPickType`: message when a tower is not on the level's
+    roster (distinct from the "unlocks on level N" message).
+  - `js/ui.js` `syncShopSelection`: shop buttons for off-roster towers are
+    disabled with a 🔒 label.
+- **Generator UI** (`levelgen.html` + `js/levelgen_ui.js`):
+  - Two-column options area mirroring `index.html`: left = enemy list
+    (legend-style rows: swatch + name, each with a checkbox), right = tower
+    list (shop-style rows: name + cost, each with a checkbox). Difficulty /
+    money / waves inputs stay below.
+  - New `lgBuildTowerCheckboxes(wrap, towerTypes)` — one checkbox per tower in
+    config order; **all checked by default** (unchecking is the point of the
+    feature).
+  - New `#lgSelectAllTowers` button with the same auto-flip behavior as the
+    enemy Select All (click = check all; when all are already checked, click
+    = clear all).
+  - `lgReadOptions()` gains `towers: [...]` (checked tower keys).
+- **Save flow** (`js/levelgen_save.js`): `lgBuildDef` includes `towers` in the
+  def (only when a subset is selected — an empty selection means "no towers"
+  and must be rejected by the generator; all-selected writes the full list,
+  which is equivalent to absent but keeps the intent explicit in the file).
+  Actually: always write the checked list; the generator requires ≥1 tower
+  (same as ≥1 enemy).
+- **Build tool** (`tools/build_levels.mjs`): the generated glue in
+  `js/levels_external.js` carries `towers: def.towers || null` so rosters from
+  `levels/*.json` survive the build. (No .json file changes — the field is
+  optional — so a rebuild is only needed to refresh the glue.)
+- **Docs**: `levels/README.md` schema table + the "availability is not part of
+  the level file" note; `FILE_SUMMARY.md` entries.
+
+### Implementation steps
+- [x] PLAN.md: Phase 29 section (this); PLAN_01.md rotated → PLAN_01_01.md (622 > 500 lines)
+- [x] js/level_validate.js: `towers` field validation (array of valid TOWER_TYPES keys)
+- [x] js/level_registry.js: `normalizeLevelDef` passes `towers` through
+- [x] js/config.js: `isTowerAllowedOnLevel(type, levelIndex)` helper
+- [x] js/game.js: `placeTower` gate uses the new helper
+- [x] js/main.js: `onPickType` roster message
+- [x] js/ui.js: `syncShopSelection` locks off-roster towers (🔒 label)
+- [x] levelgen.html: three-column flex row mirroring index.html's #wrap — left = enemy legend (.legend-item style + checkbox), center = form/buttons/cards/instructions, right = tower shop (.shop-item style + checkbox); both Select All buttons
+- [x] js/levelgen_ui.js: `lgBuildTowerCheckboxes`, `lgSelectAllTowers` wiring, `lgReadOptions().towers`, ≥1-tower guard in lgGenerate/lgCreate
+- [x] js/levelgen_save.js: `lgBuildDef` includes `towers`
+- [x] tools/build_levels.mjs: glue emits `towers`; rebuild js/levels_external.js
+- [x] tests: smoke_lgenemies (tower boxes + select-all), smoke_registry (bad `towers` shapes), smoke_levelgen (def carries `towers`), smoke_build (roster survives the build), tower-unlock smoke extended with roster placement + shop gating; full regression (29/29 pass)
+- [x] levels/README.md + FILE_SUMMARY.md updated
+
+## Phase 30: Venom visual — poisoned enemies tint green — DONE
+
+User request: enemies affected by venom should turn a green similar to the
+blue used for the Frost slow.
+
+### Implementation steps
+- [x] js/enemy.js: `poisoned` getter (true while `poisonTimer > 0`)
+- [x] js/render.js: `drawEnemy` body fill — poisoned → `#9fff8f` green (wins over the Frost slow's `#9fd8ff` blue when both are active); phased wisps still draw no body fill
+- [x] tests/smoke_venom_visual.mjs: 5 checks (plain color, poison tint, poison beats slow, tint expires, poisoned phased wisp stays a ring)
+- [x] Full regression from tests/ (31 PASS / 0 FAIL)
+- [x] FILE_SUMMARY.md updated
+
+## Phase 31: Mortar fixes — no-resistance payloads, splash visual, Tesla lines — DONE
+
+User-reported bugs + feature after first mortar playtest:
+1. **Colossus vs mortar:** Colossus should NOT resist the Mortar — it is the
+   only tower Colossus has no resistance to. Broader rule (user decision):
+   **no enemy resists any ammo fired by the Mortar.** The blast's `sourceType`
+   is now `'mortar'` (a sentinel no resist list contains), and DoTs/slow from
+   a mortar apply with `ignoreResist` — the ammo flavor still sets the DoT
+   TYPE and stats, just never the resistance. Blast radius stays the Mortar's
+   own `range` × level scale (never the ammo tower's splash).
+2. **Tesla lines:** lines must be drawn between the enemies affected by a
+   tesla-ammo mortar blast (kept: consecutive in-blast pairs; verified via
+   smoke + headless-browser screenshot). Their lifetime was extended from
+   0.15s to 0.35s so they stay visible for the whole detonation, matching
+   the splash (`fx.duration` is now read by the renderer instead of a
+   hardcoded 0.15).
+3. **Splash visual (feature):** every detonation pushes an `explosion` effect
+   — an expanding ring + soft flash at the impact point, sized to the blast
+   radius, colored by the ammo type (`TOWER_TYPES[ammo].color`).
+
+ 4. **Playfield "grows" while a tower is selected:** reproduced headlessly —
+    the `#wrap` flex row uses the default `align-items: stretch`, so opening
+    `#towerPanel` (taller than the canvas) stretched the canvas from 900 to
+    ~959px. Fix: `canvas { align-self: flex-start }` in index.html — the row
+    may grow, but the canvas stays pinned top-left at its intrinsic 1400×900.
+
+### Implementation steps
+- [x] js/config.js: boss `resist` list drops `'mortar'` (12 → 11 entries) + comment
+- [x] js/tower.js: mortar spec `sourceType: 'mortar'` (was the ammo key)
+- [x] js/enemy.js: `applySlow(ignoreResist)` / `applyBurn(dps, duration, ignoreResist)` — resistance skipped when set
+- [x] js/tower_mortar.js: blast passes `'mortar'` + `ignoreResist` DoTs; pushes `{type:'explosion', x, y, radius, color, timer, duration}` on every detonation
+- [x] js/render.js: `drawEffects` handles `explosion` (expanding ring + flash via new `hexA` helper); chain alpha now reads `fx.duration || 0.15`
+- [x] index.html: `canvas { align-self: flex-start }` — stops the flex row stretching the canvas taller when the tower panel opens (playfield-grow bug)
+- [x] js/render.js: null-guard `view.hoverCell` in the placement/aim previews (pageerror when the mouse hasn't entered the canvas yet)
+- [x] js/utils.js: `hexA(hex, alpha)` helper
+- [x] tests/smoke_mortar.mjs: check 6 rewritten (no-resistance rule: full damage vs Soused/Colossus, full-strength burn), 6b Colossus full-damage + resist-list shape, 6c explosion effect; 5d/5e updated for the always-present splash
+- [x] tests/smoke_ui.mjs: Colossus legend row now expects the named 11-tower list (not "resists all towers")
+- [x] Full regression from tests/
+- [x] FILE_SUMMARY.md updated
+
+## Phase 32: Security hardening (M-1, L-1, L-2) + dead code removal — DONE
+
+Closes the open findings from `SECURITY_AUDIT.md` / `REVIEW_REPORT.md` and
+the dead-code list. Files touched: `js/level_validate.js`, `js/config.js`,
+`js/tower.js`, `js/render.js` (+ tests, docs).
+
+### Security (validator caps — fail fast at import/build/boot)
+- **M-1 (Medium):** unbounded waypoint count → O(n²) validation DoS.
+  `validateWaypoints` now rejects > `MAX_WAYPOINTS` (200) with a specific
+  problem, checked BEFORE any spline work so a hostile def (localStorage or
+  levels/*.json) cannot hang the tab or the build process.
+- **L-1 (Low):** `totalWaves` unbounded. Now capped at `MAX_TOTAL_WAVES`
+  (50, matching the generator UI's own 1..50 clamp).
+- **L-2 (Low):** enemy keys in `waves` were only checked as strings. Now
+  whitelisted against `ENEMY_TYPES` — a typo like `"norma1"` fails
+  validation with "unknown enemy type key(s)" instead of silently dropping
+  enemies at play time (runtime drop-with-warn stays as defense in depth).
+
+### Dead code / single source of truth
+- Removed `EARLY_SEND_BONUS_PER_SEC` (`config.js`) — never referenced; the
+  actual early-send bonus is `Math.floor(waitTimer)` in `wave.js`.
+- Removed `MAX_LEVEL = 3` (`config.js`) — redundant; `tower.js` derives max
+  level from `UPGRADE_COST_FACTOR.length + 1` (one source of truth).
+- Removed the commented-out barrel code block in `render.js` `drawTower`
+  (sprites don't rotate; the dead `t.angle` field stays — harmless, and the
+  barrel would need it if ever re-added).
+- **Mortar-frost slow:** `tower.js` hardcoded `{ factor: SLOW.factor,
+  duration: SLOW.duration }` in the mortar spec. Now uses the same boolean
+  convention as the homing path (`slow: tp.slow > 0`) — `Enemy.applySlow`
+  reads stats from `SLOW`, so a future Frost retune flows through Mortar
+  frost ammo too (verified by smoke_mortar's SLOW.duration assertion).
+
+### Implementation steps
+- [x] js/level_validate.js: `MAX_WAYPOINTS` cap (early return before spline work), `MAX_TOTAL_WAVES` cap, `waves` enemy-key whitelist
+- [x] js/config.js: removed `MAX_LEVEL`, `EARLY_SEND_BONUS_PER_SEC`; `SLOW` comment notes the Mortar path
+- [x] js/tower.js: mortar spec `slow` → boolean convention
+- [x] js/render.js: removed commented-out barrel block
+- [x] tests/smoke_registry.mjs: 3 new bad-def cases + specific-message assertions + 100k-waypoint DoS timing check (<500ms) + 200-boundary check
+- [x] Full regression from tests/ (31 PASS / 0 FAIL)
+- [x] FILE_SUMMARY.md updated
+
+## Phase 33: Carryover by difficulty + wave preview + Show Ranges — DONE
+
+Three user-requested features:
+
+1. **Money carryover scales with the TARGET level's difficulty.** The level
+   being entered (not the one just won) determines the fraction of unspent
+   money that carries over: easy 100%, normal 75%, hard 50%, nightmare 25%.
+   Example: finish L10 with $500, L11 is hard → carry $250. `normal` (the
+   built-in mid difficulty) maps to 75% — the user's "Medium". New helper
+   `carryoverFactor(difficultyKey)` in `js/config.js`; `main.js loadLevel`
+   applies it and the message shows the scaled amount.
+2. **Next-wave preview in the HUD.** While between waves, the HUD shows the
+   upcoming wave's enemy composition (colored swatches + counts) so the player
+   can plan placement before sending. Data comes straight from `buildWave()`
+   (same function that spawns the wave — preview is always accurate). Rendered
+   into a `#wavePreview` box at the BOTTOM of the page, below the message line,
+   by `ui.syncWavePreview()`, called each frame from `main.js frame()`; hidden
+   while a wave is in progress or during the build phase (no next wave to
+   preview then) via `visibility` (not `display`) so its reserved space never
+   shifts the layout.
+3. **"Show Ranges" toggle button** in the HUD: draws range circles for EVERY
+   placed tower simultaneously (not just the selected one). Toggle state lives
+   on `view.showRanges`; `render.js draw()` iterates all towers when on, using
+   the same per-tower rules as the selected-tower branch (Mortar → blast circle
+   at its target point, Warden → aura ring, others → range circle).
+
+### Implementation steps
+- [ ] js/config.js: `carryoverFactor(difficultyKey)` (easy 1.0 / normal 0.75 / hard 0.5 / nightmare 0.25; unknown key → 0.75 fallback)
+- [ ] js/main.js: `loadLevel` scales carried money by the target level's difficulty factor; message shows scaled amount
+- [ ] index.html: `#wavePreview` box in HUD + `#showRangesBtn` toggle button (+ minimal CSS)
+- [ ] js/ui.js: `syncWavePreview()` (composition from `buildWave`, swatch+count chips, hide when no pending wave); `#showRangesBtn` binding + label sync
+- [ ] js/render.js: `draw()` — when `view.showRanges`, draw range circles for all towers (per-tower rules as selected)
+- [ ] js/main.js: `view.showRanges` field + `onShowRanges` handler; frame loop calls `ui.syncWavePreview()`
+- [ ] tests/smoke_money.mjs: carry-over checks updated to the difficulty-scaled rule
+- [ ] tests: new smoke for wave preview (composition counts match buildWave, hidden states) and Show Ranges (renderer draws N circles for N towers when on, 1 when off+selected)
+- [ ] Full regression from tests/
+- [ ] FILE_SUMMARY.md updated
+
+## Phase 34: Death animation + upgrade preview tooltip + persistent speed
+
+Three user-requested features:
+
+1. **Enemy death animation.** Enemies currently vanish the instant they die
+   (the alive-filter drops them from `game.enemies`). A killed enemy now
+   leaves a short-lived "corpse" record in a SEPARATE `game.corpses` list
+   (not `game.effects` — several tests assert exact `effects.length`/indices,
+   and corpses must not pollute that list). Each corpse: `{x, y, radius,
+   color, timer}` with `DEATH_ANIM = 0.15` s duration. The renderer draws it
+   after the enemies as a filled disc that scales down and fades out
+   (alpha = scale = timer/duration). Every non-leak kill funnels through
+   `Game.onEnemyKilled()` (direct hits, splash, burn/poison DoT, chain,
+   mortar blast, railgun) — one push there covers all causes; leaks get no
+   animation. Corpses tick + filter in `Game.update(dt)` alongside the
+   effects (so they freeze during pause/build like everything else), and are
+   cleared in `reset()`. Win check and all loops use `enemies`, so corpses
+   never block a win.
+2. **Tower upgrade preview tooltip.** Hovering the Upgrade button shows the
+   NEXT level's stats, computed from `LEVEL_SCALE` (same formula as the
+   Tower getters): `L2: dmg 19 · rng 168 · 3.0/s` for a Gun at L1
+   (12×1.6 → 19, 150×1.12 → 168, 2.5×1.2 → 3.0). Implemented as the button's
+   `title` attribute (native tooltip, zero CSS). Special towers mirror the
+   panel's stat-line branches: Warden → aura %, Mint → income amount,
+   Mortar → blast radius + payload damage + rate.
+3. **Persistent game speed.** The 1×/2×/3× speed selection now survives
+   reloads: `SPEED_KEY = 'towerDefenseSpeed.v1'` in `main.js`, loaded at boot
+   with the same try/catch + validation pattern as `MUTE_KEY` (value must be
+   one of 1/2/3, else 1), saved on every `onSpeed()` cycle. The button label
+   is set from the loaded value at boot (no more hardcoded "Speed: 1x" drift).
+
+### Implementation steps
+- [x] js/game.js: `DEATH_ANIM` const; `reset()` inits `this.corpses = []`; `onEnemyKilled()` pushes a corpse record; `update(dt)` ticks + filters corpses
+- [x] js/render.js: `drawCorpses(ctx, corpses)` — scaled/faded disc per corpse; called from `draw()` after the enemy loop
+- [x] js/ui.js: `renderTowerPanel` computes the next-level preview string (LEVEL_SCALE × def stats, per-tower-type branches) and sets it on the Upgrade button's `title`
+- [x] js/main.js: `SPEED_KEY` + `loadSpeed()`/`saveSpeed(s)` (try/catch, validate ∈ {1,2,3}); `speed` initialized from storage; boot syncs the button label; `onSpeed()` saves after cycling
+- [x] tests/smoke_phase34.mjs: corpse pushed on kill (burn DoT), not on leak; corpse ticks down and is removed after 0.15 s; renderer draws a scaled/faded arc for a live corpse and nothing for an empty list; win check unaffected by lingering corpses
+- [x] tests/smoke_phase34.mjs (tooltip section): Gun L1 title = `L2: dmg 19 · rng 168 · 3.0/s`; Warden/Mint/Mortar branches produce their special strings; max-level tower has no upgrade cost
+- [x] tests/smoke_speed.mjs: boot the REAL main.js (full index.html script list, DOM stub with localStorage) — stored 2x loads as speed 2 + label "Speed: 2x"; invalid/absent storage → 1; `handlers.onSpeed()` cycles 2→3 and persists "3"; cycle back to 1 persists
+- [x] Full regression from tests/ (all smoke tests pass)
+- [ ] FILE_SUMMARY.md updated
+
+## Phase 35 — Game stats tracking + always-visible bottom bar
+
+**Goal:** `game.stats` grows five new fields — total damage dealt, towers built,
+towers sold, enemies leaked, and a DoT-kill vs direct-kill split — and the
+bottom `#wavePreview` bar is ALWAYS visible: it shows the Wave Preview when a
+next wave is pending, otherwise it falls back to a Game Stats readout.
+
+### Design
+1. **Damage tracking** — every damage path already funnels through
+   `Enemy.takeDamage(amount, sourceType)` (projectile impact + splash,
+   piercing slugs, Tesla chain, mortar blast), so the counter lives there:
+   the enemy stores its `game` reference (set at spawn in `Game.update`,
+   split children in `onEnemyKilled`) and `takeDamage` adds the EFFECTIVE
+   damage (after resistance) to `game.stats.damageDealt` — only while alive,
+   so overkill is never counted. DoT ticks (burn/poison in `Enemy.update`)
+   also credit `damageDealt` at their actual tick amount. Tests that build
+   bare enemies (no game) are unaffected — the guard skips when `game` is
+   unset.
+2. **Stats fields** — `reset()` initializes `stats = { kills, moneyEarned,
+   wavesSurvived, damageDealt: 0, towersBuilt: 0, towersSold: 0, leaked: 0,
+   dotKills: 0, directKills: 0 }`. Increment points:
+   - `towersBuilt` in `placeTower` (after the money check passes);
+   - `towersSold` in `sellTower`;
+   - `leaked` in `onEnemyLeaked`;
+   - `dotKills` vs `directKills` in `onEnemyKilled`: a kill is DoT when the
+     enemy still has an active burn or poison (`burnTimer > 0 ||
+     poisonTimer > 0`) — every direct-kill path (impact/slug/chain/mortar)
+     calls `onEnemyKilled` with the DoTs already applied, so the flag is
+     reliable; DoT deaths arrive via the `'burned'` state and still have
+     their timers set. The split covers every non-leak kill, so
+     `dotKills + directKills === kills`.
+3. **Always-visible bar** — `UI.syncWavePreview()` no longer hides the bar.
+   When a next wave is pending it renders the existing composition chips;
+   otherwise it renders a stats readout (label "Stats:" + one chip per stat:
+   damage dealt, towers built, towers sold, leaked, DoT kills, direct kills)
+   with the same key-based rebuild so the DOM only updates when a value
+   changes. The bar keeps its reserved space in both modes (no layout shift).
+
+### Implementation steps
+- [x] js/game.js: `stats` gains `damageDealt`, `towersBuilt`, `towersSold`, `leaked`, `dotKills`, `directKills`; `placeTower`/`sellTower`/`onEnemyLeaked`/`onEnemyKilled` increment them; spawn sites set `enemy.game = this`
+- [x] js/enemy.js: `takeDamage` credits effective damage to `game.stats.damageDealt` (guarded by `this.game`); burn/poison DoT ticks credit their tick amount — all three credit paths clamp to HP absorbed (`Math.min(tick, hp)`) so overkill is never counted
+- [x] js/ui.js: `syncWavePreview()` always visible — wave chips when pending, else a "Stats:" readout of the six new fields
+- [x] tests/smoke_stats.mjs: damageDealt exactness (resistance-scaled), towersBuilt/Sold, leaked, DoT vs direct split across kill causes
+- [x] Update tests/smoke_wave_preview.mjs: hidden-state assertions → stats-fallback assertions
+- [x] Full regression from tests/ (all 35 smoke tests pass)
+- [x] FILE_SUMMARY.md updated
+
+## Phase 36: Two new generator map types — Switchback + Spiral (Bloons-style)
+
+The generator pool (`js/levelgen_paths.js`) has arc/sbend/loop/weave/crossroads
+but no true switchback and no spiral/ring shape — both are staples of Bloons /
+Kingdom Rush map design. Also: the built-in level 4 named "Switchback" is just a
+3-bend zigzag (row 9 → 3 → 14 → 6) that never switches back; it gets renamed
+**Zigzag** so the name is free for the real shape. Renaming (not removing) keeps
+all level indices and the L5/L6 tower+enemy unlock gates stable.
+
+### Design
+
+- **`tplSwitchback`** — four horizontal lanes alternating direction, Bloons/
+  Kingdom-Rush style: enter on a top row (1–2), run right to xR (19–24), drop a
+  short spacing (3–4 rows), run left to xL (3–7), repeat down to a bottom row
+  (≤14), exit right. **Zero crossovers**; long path (~80+ cells) with wide
+  buildable pockets between the lanes. Same shape family as the built-in
+  "Zigzag", but four lanes instead of three and fully randomized.
+- **`tplSpiral`** — a full rectangular ring that spirals back inward and exits:
+  enter top band (row 4–6), sweep right along the top to xR (20–24), down the
+  right side to rB (13–15), left along the bottom to xL (3–7), up the left side
+  to a middle inner-lane row rC, then rightward along the inner lane straight
+  to the exit — **crossing the right column once** (perpendicular crossover at
+  (xR, rC)). Lanes are >=3 rows apart so corner bows (~1 cell deep, up to ~65px
+  on long runs) can't reach a parallel run; rB <= 15 keeps the bottom corners'
+  downward bow inside the grid. ~88 cells, 1–2 crossovers (the second is a
+  benign corner-rounding cell, not a double-walk).
+
+Both templates emit axis-aligned waypoints; every candidate still passes the
+game's own `validateLevelDef` (bounds, no same-direction double-walk —
+crossovers are perpendicular only). Note from measurement: the Catmull-Rom
+corner bow is deeper than "one cell" — up to ~65px into the interior quadrant,
+extending along the run for long adjacent segments — so lanes need >=3 rows of
+spacing and rB <= 15 to stay legal.
+
+### Implementation steps
+- [x] PLAN.md Phase 36 section written
+- [x] js/levels.js: built-in level 4 renamed "Switchback" → "Zigzag" (waypoints unchanged)
+- [x] js/levelgen_paths.js: `tplSwitchback` + `tplSpiral`, registered in `LG_TEMPLATES`, header comment updated
+- [x] tests/smoke_levelgen.mjs: template-pool assertion extended to 7 templates
+- [x] Scratch validation: 400 seeds × both templates — all validate, no self-intersection, switchback 0 crossovers (avg length 84), spiral 1–2 crossovers (avg length 88; the extra one is a benign corner-rounding cell)
+- [x] Full regression from tests/ (36/36 pass)
+- [x] FILE_SUMMARY.md updated
+
+### Follow-up candidate
+- A built-in "Spiral" campaign level (append to LEVELS — safe index-wise, but
+  shifts external indices in smoke_boot.mjs; deferred).
+
+## Phase 37: localStorage-only levels — kill the build step — IN PROGRESS
+
+User request: the level generator saves levels to localStorage (already does)
+and the game loads them dynamically at startup — **no more saving .json files
+to disk, no more `build_levels.mjs`**. The `levels/` folder is kept as a
+backup/share artifact; at startup its levels land in localStorage via the new
+Import button.
+
+### Decisions (confirmed with user)
+- **No committed seed bundle**: `js/levels_external.js` is deleted; no file is
+  generated into the repo anymore. A fresh clone starts with the 6 built-ins
+  only; everyone imports their own levels once.
+- **Generator page gets Export + Import buttons** (in addition to Create):
+  - **Export**: downloads the ENTIRE custom-level store as one
+    `tower-defense-levels.json` array (backup / share with friends).
+  - **Import**: file picker accepting `.json` — either a single level def or an
+    array of defs (the levels/ folder files, or an export file). Every entry is
+    validated with `validateLevelDef`; missing uuids get fresh v4s; dedupe by
+    uuid (existing entry wins); valid new entries are saved to localStorage and
+    registered in memory. Invalid entries are skipped and reported.
+- **Create** now saves to localStorage + registers only (no file picker, no
+  download). Message tells the player the level is playable and to use Export
+  for backup/sharing.
+
+### Design
+- `js/level_custom.js` gains: `importLevelDefs(defs)` (validate → stamp missing
+  uuids → dedupe by uuid against existing store + registry → save + register
+  new ones; returns `{ added, skipped, replaced }`), `exportCustomLevels()`
+  (pretty JSON string of the whole store). Existing functions unchanged.
+- `js/levelgen_save.js`: drop `lgSaveFile` (File System Access API + download);
+  `lgCreateLevels` becomes sync — build defs, `saveCustomLevel` each, register
+  in memory. Keep `lgFilename`/`lgBuildDef` (Export naming + def building).
+- `js/levelgen_ui.js`: `lgCreate` rewritten for the localStorage flow; new
+  `lgExport()` (Blob download of `exportCustomLevels()`) and `lgImport()`
+  (hidden `<input type=file>` wired to a button; reads text, JSON.parses,
+  calls `importLevelDefs`, reports counts).
+- `js/progress.js`: `externalCount()` → `customCount()` =
+  `getCustomLevels().length` (level_custom.js loads before progress.js in
+  index.html; guarded for bundles without it). Unlock floor = built-ins +
+  custom levels, so imported/generated levels are always playable.
+- `js/ui.js`: `buildLevelSelect` open-rule simplifies to
+  `i < unlocked || lvl.custom || i >= LEVELS.length` (no external special-case).
+- `index.html`: drop the `js/levels_external.js` script tag; reorder
+  `level_custom.js` BEFORE `progress.js`.
+- `levelgen.html`: replace the "How to add your levels" instructions with the
+  new localStorage flow (Create → playable now; Export → backup/share .json;
+  Import → bring in levels from the levels/ folder or a friend's export file);
+  add Export/Import buttons + hidden file input.
+- **Deleted**: `js/levels_external.js`, `tools/build_levels.mjs`,
+  `tools/build_levels.bat`. Kept: `levels/riverbend.json` + `levels/README.md`
+  (rewritten: levels live in localStorage; the folder is the backup/share
+  format; Import at startup).
+
+### Implementation steps
+- [x] PLAN.md Phase 37 section written
+- [x] js/level_custom.js: `importLevelDefs`, `exportCustomLevels` (+ `customUuid` fallback — index.html never loads levelgen_names.js; uuid-less files dedupe by name even against an earlier stamped import)
+- [x] js/levelgen_save.js: drop file-saving; sync create flow (now fully DOM-free)
+- [x] js/levelgen_ui.js: lgCreate rewrite + lgExport/lgImport (+ lgImportReport)
+- [x] levelgen.html: Export/Import buttons, new "How levels work here" instructions
+- [x] js/progress.js: externalCount → customCount (localStorage-backed)
+- [x] js/ui.js: buildLevelSelect open-rule cleanup
+- [x] index.html: drop levels_external.js tag; level_custom.js after path.js + before progress.js (validation needs hasSelfIntersection/sampleSpline)
+- [x] Delete js/levels_external.js, tools/build_levels.mjs, tools/build_levels.bat (+ empty tools/ dir)
+- [x] levels/README.md rewritten for the localStorage flow
+- [x] Tests: smoke_boot (store-seeded Riverbend, order guard), smoke_levels (store-seeded), smoke_progress (customCount floor via 2 seeded defs), smoke_levelgen (new section 5: import/export round-trip), delete smoke_build.mjs; also fixed smoke_paused_start/smoke_speed (no build run) and smoke_lgenemies (Export/Import ids in DOM stub)
+- [x] Full regression from tests/ — all 34 pass
+- [x] FILE_SUMMARY.md updated
+
+### Notes from implementation
+- Import dedupe is uuid-based, but a uuid-less file re-imports by NAME against
+  the store (so re-importing riverbend.json never duplicates it, even though
+  the first import stamped a uuid on the stored copy).
+- `importLevelDefs` returns `{ added, skipped, problems }` (not `replaced` —
+  existing entries always win; Create's overwrite path is saveCustomLevel).
+
+## Next (unstarted)
+
+- Playfield-grow bug FIXED in Phase 31 (item 4) — verified headlessly:
+  canvas stays 1402×902 in every selection state. Candidate follow-ups:
+  balance pass on the five new towers in real play.

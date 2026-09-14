@@ -5,14 +5,6 @@
 // are written: Export (levelgen_ui.js) is how levels leave this browser — as a
 // .json backup/share file in the same schema the levels/ folder uses.
 
-// Filename: sanitized silly name + .json, e.g. "Soggy_Walrus.json". Used by
-// the single-level export path; no level number (ordering is not the
-// generator's job).
-function lgFilename(name) {
-  const safe = String(name).trim().replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'level';
-  return safe + '.json';
-}
-
 // Pure-data def for a candidate (matches the levels/*.json schema). The uuid
 // is generated here — it is the dedupe key when levels are shared between
 // users; it is internal and never shown in the UI. Phase 29: `towers` is the

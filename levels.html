@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tower Defense — Stored Levels</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #14171c; color: #dfe6ee;
+         font-family: system-ui, sans-serif; display: flex;
+         flex-direction: column; align-items: center; gap: 8px; padding: 12px; }
+  h1 { font-size: 20px; margin: 4px 0; }
+  .back { color: #8b97a7; text-decoration: none; font-size: 13px; }
+  .back:hover { color: #ffd76a; }
+  #lsHead { display: flex; gap: 14px; align-items: center; font-size: 14px; }
+  #lsHead b { color: #ffd76a; }
+  .tower-btn { background: #232a35; border: 1px solid #39424f; color: #dfe6ee;
+    padding: 7px 9px; border-radius: 6px; cursor: pointer; text-align: left; }
+  .tower-btn:hover { background: #2c3543; }
+  .tower-btn.danger { border-color: #5a3040; color: #ff8fa8; }
+  .tower-btn.danger:hover { background: #3a2530; }
+  #lsList { width: min(760px, 94vw); display: flex; flex-direction: column; gap: 6px; }
+  .ls-row { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 8px 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .ls-row .name { font-weight: 600; min-width: 150px; }
+  .ls-row .desc { color: #8b97a7; flex: 1; }
+  .ls-row .uuid { color: #5f6b7d; font-size: 11px; cursor: help; }
+  .ls-row .tower-btn { padding: 4px 10px; font-size: 12px; }
+  .ls-empty { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 14px; color: #8b97a7; font-size: 13px; text-align: center; }
+  #lsMsg { font-size: 14px; color: #8b97a7; min-height: 18px; }
+</style>
+</head>
+<body>
+  <h1>📦 Stored Levels</h1>
+  <a class="back" href="index.html">← Back to game</a>
+  <div id="lsHead">
+    <span><b id="lsCount">0</b> level(s) in this browser's store</span>
+    <a class="tower-btn" href="levelgen.html" style="text-decoration:none;">🎲 Generator</a>
+  </div>
+  <div id="lsList"></div>
+  <div id="lsMsg">Export a level to share it as a .json file, or delete one you no longer want.</div>
+
+  <!-- Scripts in dependency order (works from file:// without a server) -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/level_validate.js"></script>
+  <script src="js/level_registry.js"></script>
+  <script src="js/path.js"></script>
+  <script src="js/level_custom.js"></script>
+  <script src="js/levels_store_ui.js"></script>
+  <script>
+    (function () {
+      registerCustomLevels(); // re-run: the store may have changed since load
+      lsInit();
+    })();
+  </script>
+</body>
+</html>
