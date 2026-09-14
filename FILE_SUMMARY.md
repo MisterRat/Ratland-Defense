@@ -59,7 +59,7 @@ Path construction and geometry: the path is a **centripetal Catmull-Rom spline**
 ## Levels
 
 ### `js/levels.js`
-Hard-coded definitions of the six built-in levels (Snake, Serpentine, Comb, Switchback, The Gauntlet, Crossroads) as grid-coordinate waypoint lists, each with a `difficulty` key (L1–L2 easy, L3–L4 normal, L5–L6 hard) that drives procedural wave scaling exactly like the generator's.
+Hard-coded definitions of the six built-in levels (Snake, Serpentine, Comb, Zigzag, The Gauntlet, Crossroads) as grid-coordinate waypoint lists, each with a `difficulty` key (L1–L2 easy, L3–L4 normal, L5–L6 hard) that drives procedural wave scaling exactly like the generator's. Level 4 was renamed "Switchback" → "Zigzag" in Phase 36 to free the name for the new generator switchback template.
 - Constant: `LEVELS`
 - Functions: `levelWaypoints(i)`
 
@@ -69,24 +69,19 @@ Pure level-def validation shared by the registry, the build tool and smoke tests
 - Constants: `isInt`, `MAX_DEPTH`, `DIFFICULTY_KEYS`, `UUID_RE`, `MAX_WAYPOINTS`, `MAX_TOTAL_WAVES`
 
 ### `js/level_registry.js`
-The single ordered registry of all playable levels: seeds the built-in levels and registers validated external ones behind a uniform normalized shape (incl. `difficulty`, default 'normal', pass-through `uuid` — the level's machine identity used for duplicate detection; names are cosmetic — and Phase-29 pass-through `towers` roster, absent = all towers allowed).
+The single ordered registry of all playable levels: seeds the built-in levels and registers validated custom ones (from the localStorage store, `js/level_custom.js`) behind a uniform normalized shape (incl. `difficulty`, default 'normal', pass-through `uuid` — the level's machine identity used for duplicate detection; names are cosmetic — and Phase-29 pass-through `towers` roster, absent = all towers allowed).
 - Functions: `normalizeLevelDef(def, index)`, `registerLevel(def, sourceFile)` (warns on duplicate uuid), `getLevels()`, `getLevel(i)`, `levelCount()`
 - Constant: `_levels`
 
-### `js/levels_external.js`
-Auto-generated data-only script (from `tools/build_levels.mjs` over `levels/*.json`) that re-validates and appends external levels to the registry at boot. Entries are ordered by difficulty (easy → normal → hard → nightmare), then alphabetically by name, so players meet easier external levels first; all are added unlocked (see `EXTERNAL_COUNT`).
-- Constants: `LEVELS_EXTERNAL` (currently one level: Riverbend from `riverbend.json`), `EXTERNAL_COUNT` (count of external levels — the unlock floor used by `progress.js`)
-- Inline IIFE: validates each entry with `validateLevelDef` and pushes normalized defs onto `_levels` (incl. `difficulty`, default "normal", and pass-through `uuid`)
-
 ### `js/level_custom.js`
-localStorage mirror (`towerDefenseCustomLevels.v1`) for levels created on the generator page, with boot-time re-registration into the registry (validated, deduped by **uuid** — legacy defs without a uuid fall back to name) so custom levels survive reloads in both pages.
-- Functions: `getCustomLevels()`, `saveCustomLevel(def)` (replaces same-uuid entry), `registerCustomLevels()`, `isCustomLevel(i)`, `customLevelId(def)`, `registryHasLevel(def)`
+The localStorage level store (`towerDefenseCustomLevels.v1`) — the single source of truth for every non-built-in level: levels created on the generator page and levels imported from `.json` files (the `levels/` folder format or a friend's export). Boot-time re-registration into the registry (validated, deduped by **uuid** — legacy defs without a uuid fall back to name) so custom levels survive reloads in both pages. Import validates each entry with the game's own validator, stamps missing uuids (via `lgUuid` when loaded, else a built-in v4 fallback), and dedupes against both the store and the registry (uuid, or name for uuid-less files); export serializes the whole store as a pretty JSON array.
+- Functions: `getCustomLevels()`, `saveCustomLevel(def)` (replaces same-uuid entry), `registerCustomLevels()`, `isCustomLevel(i)`, `customLevelId(def)`, `registryHasLevel(def)`, `importLevelDefs(defs)` (array or single def → `{added, skipped, problems}`; persists + re-registers on change), `exportCustomLevels()` (pretty JSON array of the whole store), `customUuid()` (v4 fallback when `lgUuid` is absent — index.html never loads levelgen_names.js)
 - Constant: `CUSTOM_LEVELS_KEY`; auto-runs `registerCustomLevels()` at load (guarded)
 
 ### `js/levelgen_paths.js`
-Seeded RNG (mulberry32) plus Bloons/Kingdom-Rush-inspired path templates that produce validated waypoint candidates with stats (length, crossovers, buildable). Templates emit axis-aligned control points that the Catmull-Rom spline bows into real curves: `tplArc` (one wide offset bend), `tplSBend` (two opposing offsets, smooth S), `tplLoop` (hairpin with offset lane + crossover); crossover shapes: `tplWeave`, `tplCrossroads`. Each candidate carries its own `_seed` so callers can derive stable per-candidate extras (e.g. the silly name). Stats use the shared sample-based walker from path.js. Row ranges are clamped off the boundary rows (1..rows-2) so spline corners cannot bow off the map edges.
-- Functions: `mulberry32(seed)`, `rngInt`, `rngPick`, `rngShuffle`, `tplArc(rng)`, `tplSBend(rng)`, `tplLoop(rng)`, `tplWeave(rng)`, `tplCrossroads(rng)`, `lgPathStats(waypoints)`, `generatePathCandidates(seed, count, maxTries)`
-- Constant: `LG_TEMPLATES` (5 templates; 4 candidates drawn per Generate)
+Seeded RNG (mulberry32) plus Bloons/Kingdom-Rush-inspired path templates that produce validated waypoint candidates with stats (length, crossovers, buildable). Templates emit axis-aligned control points that the Catmull-Rom spline bows into real curves: `tplArc` (one wide offset bend), `tplSBend` (two opposing offsets, smooth S), `tplLoop` (hairpin with offset lane + crossover); crossover shapes: `tplWeave`, `tplCrossroads`; Phase 36 long-path shapes: `tplSwitchback` (four lanes alternating direction — a true switchback, zero crossovers) and `tplSpiral` (a rectangular ring spiraling inward to an inner lane that exits crossing the right column once; lane spacing >=3 rows keeps corner bows off parallel runs). Each candidate carries its own `_seed` so callers can derive stable per-candidate extras (e.g. the silly name). Stats use the shared sample-based walker from path.js. Row ranges are clamped off the boundary rows (1..rows-2) so spline corners cannot bow off the map edges.
+- Functions: `mulberry32(seed)`, `rngInt`, `rngPick`, `rngShuffle`, `tplArc(rng)`, `tplSBend(rng)`, `tplLoop(rng)`, `tplWeave(rng)`, `tplCrossroads(rng)`, `tplSwitchback(rng)`, `tplSpiral(rng)`, `lgPathStats(waypoints)`, `generatePathCandidates(seed, count, maxTries)`
+- Constant: `LG_TEMPLATES` (7 templates; 4 candidates drawn per Generate)
 
 ### `js/levelgen_names.js`
 Identity + naming helpers for generated levels: `lgUuid()` produces a 128-bit v4 UUID (the level's identifier for the code — stored in the JSON, never shown in the UI) and `lgSillyName(rng)` produces a silly randomized 2-word human name (adjective + noun) from a seeded RNG.
@@ -99,23 +94,23 @@ The shared difficulty model: the `LG_DIFFICULTY` table (easy/normal/hard/nightma
 - Constant: `LG_DIFFICULTY` (easy/normal/hard/nightmare)
 
 ### `js/levelgen_save.js`
-Create flow for the generator page: builds pure-data JSON defs (incl. `difficulty`, the Phase-29 `towers` roster from the checked tower checkboxes, and a fresh v4 `uuid` — the level's machine identity), names files after the sanitized silly name with **no level-number prefix** (ordering is not the generator's job), saves via File System Access API with a Blob-download fallback, then mirrors to localStorage and registers in memory.
-- Functions: `lgFilename(name)`, `lgBuildDef(candidate, opts)` (stamps `uuid`; writes `towers` when `opts.towers` is a non-empty array), `lgSaveFile(def, filename)` (async), `lgCreateLevels(candidates, opts)` (async)
+Create flow for the generator page: builds pure-data JSON defs (incl. `difficulty`, the Phase-29 `towers` roster from the checked tower checkboxes, and a fresh v4 `uuid` — the level's machine identity) and saves them straight to the localStorage custom-level store (`saveCustomLevel`), registering each in memory — no files are written (Export is how levels leave the browser).
+- Functions: `lgFilename(name)` (sanitized silly name + `.json`, for the single-level export path), `lgBuildDef(candidate, opts)` (stamps `uuid`; writes `towers` when `opts.towers` is a non-empty array), `lgCreateLevels(candidates, opts)` (sync — per-candidate save + register; returns `[{def, registered}]`)
 
 ### `js/levelgen_ui.js`
 Generator page UI logic: small-canvas path diagrams (checkerboard, the actual spline drawn via `sampleSpline`, spawn/exit markers, crossover highlighting from the shared sample-based walker), enemy-checkbox builder (rows use `index.html`'s `.legend-item` style — swatch + name + desc — with a checkbox prepended) + Select All/Clear toggle, Phase-29 tower-roster checkbox builder (rows use `index.html`'s `.shop-item` style — name + cost + desc — with a checkbox prepended; all towers checked by default, unchecking removes a tower from the level) + its own Select All/Clear toggle, options form reader (incl. `towers`), 4 preview cards each with an **editable silly-name input** + stats (incl. difficulty label and tower count) + checkbox, Create / Try Again handlers (both require ≥1 enemy AND ≥1 tower).
-- Functions: `lgCrossoverCells(waypoints)`, `lgDrawDiagram(canvas, waypoints)`, `lgBuildEnemyCheckboxes(wrap, enemyTypes)` (excludes `childOnly`; Minion+Colossus default), `lgSelectAllEnemies(wrap, on)`, `lgBuildTowerCheckboxes(wrap, towerTypes)` (Phase 29; all checked by default), `lgSelectAllTowers(wrap, on)`, `lgReadOptions()` (returns `{enemies, towers, difficulty, startMoney, waves}`), `lgGenerate()` (assigns a silly name per candidate; guards ≥1 enemy + ≥1 tower), `lgRenderCards(opts)`, `lgCreate()` (async; same guards), `lgTryAgain()`, `lgInit()` (wires BOTH Select All buttons — auto-flip to Clear when all checked)
+- Functions: `lgCrossoverCells(waypoints)`, `lgDrawDiagram(canvas, waypoints)`, `lgBuildEnemyCheckboxes(wrap, enemyTypes)` (excludes `childOnly`; Minion+Colossus default), `lgSelectAllEnemies(wrap, on)`, `lgBuildTowerCheckboxes(wrap, towerTypes)` (Phase 29; all checked by default), `lgSelectAllTowers(wrap, on)`, `lgReadOptions()` (returns `{enemies, towers, difficulty, startMoney, waves}`), `lgGenerate()` (assigns a silly name per candidate; guards ≥1 enemy + ≥1 tower), `lgRenderCards(opts)`, `lgCreate()` (sync — localStorage save + register; same guards), `lgTryAgain()`, `lgExport()` (Blob download of `exportCustomLevels()` as `tower-defense-levels.json`), `lgImport()` (hidden multi-file input → `importLevelDefs` per file → report), `lgImportReport(fileCount, added, skipped, problems)`, `lgInit()` (wires BOTH Select All buttons — auto-flip to Clear when all checked — plus Export/Import)
 - Constants: `LG_DIAGRAM_CELL`, `lgState`
 
 ### `levelgen.html`
-Secondary page shell for the level generator: a **three-column flex row copied from `index.html`'s `#wrap`** — left = enemy legend (the exact `#legend` / `.legend-item` style: swatch + name + desc, with a checkbox prepended to each row and a **☑ Select All** auto-flip button in the header), center = everything else (difficulty/money/waves form, Generate/Create/Try Again buttons, message line, preview-card area, and a "How to add your levels" instructions box — save files into the `levels/` folder, then run `build_levels.bat` from `Tools/`), right = tower shop (the exact `#side` / `.shop-item` style: name + cost + desc, with a checkbox prepended to each row and its own **☑ Select All** auto-flip button). All generator scripts loaded in dependency order. No global name field; names are per-candidate on the cards.
+Secondary page shell for the level generator: a **three-column flex row copied from `index.html`'s `#wrap`** — left = enemy legend (the exact `#legend` / `.legend-item` style: swatch + name + desc, with a checkbox prepended to each row and a **☑ Select All** auto-flip button in the header), center = everything else (difficulty/money/waves form, Generate/Create/Try Again buttons, an Export/Import button row, message line, preview-card area, and a "How levels work here" instructions box — Create saves to the browser's localStorage store, Export downloads a `.json` backup/share file, Import brings in `.json` level files), right = tower shop (the exact `#side` / `.shop-item` style: name + cost + desc, with a checkbox prepended to each row and its own **☑ Select All** auto-flip button). All generator scripts loaded in dependency order. No global name field; names are per-candidate on the cards.
 - Inline IIFE: calls `lgBuildEnemyCheckboxes(...)` + `lgBuildTowerCheckboxes(...)` and boots with `registerCustomLevels()` + `lgInit()`
 
 ## Persistence, scoring & sound
 
 ### `js/progress.js`
-Persistent level-unlock progression stored in localStorage (with an in-memory fallback) that survives reloads. External levels are always unlocked: the unlock floor is built-ins + `EXTERNAL_COUNT` (emitted by the generated `levels_external.js`), and stale saved values below the floor are lifted up.
-- Functions: `loadProgress()`, `saveProgress(p)`, `normalizeProgress(data)`, `externalCount()`
+Persistent level-unlock progression stored in localStorage (with an in-memory fallback) that survives reloads. Custom levels (the localStorage store) are always unlocked: the unlock floor is built-ins + `customCount()` (counted from the store via `getCustomLevels`), and stale saved values below the floor are lifted up.
+- Functions: `loadProgress()`, `saveProgress(p)`, `normalizeProgress(data)`, `customCount()`
 - Constant: `PROGRESS_KEY`
 
 ### `js/score.js`
@@ -167,22 +162,15 @@ First-time 3-step tutorial overlay that auto-advances as the player performs eac
 
 ### `index.html`
 The single-page shell: dark-themed layout with HUD bar (incl. a "🎲 Level Generator" link to levelgen.html), enemy legend (incl. `.legend-item.inactive` dimming for types not active on the current map), 1400×900 game canvas, shop/tower side panel, and all classic scripts loaded in dependency order so the game runs directly from `file://`. Phase-21: the pause button boots as `▶ Resume` and the initial `#msg` tells the player to build then press ▶ Resume. Phase-31: the canvas gets `align-self: flex-start` so the flex row's default stretch can no longer grow the playfield taller when the tower panel opens (playfield-grow bug). Phase 33: next-wave preview as a full-width `#wavePreview` bar at the BOTTOM of the page, below the `#msg` line (`.wp-chip`/`.swatch` styles; reserves its space permanently so the layout never shifts), plus the "◎ Ranges" toggle button (`#showRangesBtn`) in the HUD. Phase 35: the bar is always visible — wave-composition chips between waves, Game Stats readout otherwise (no visibility toggling anymore).
-- No functions — static HTML + inline CSS; loads the 27 `js/*.js` scripts (incl. `level_custom.js` after `levels_external.js`, `levelgen_waves.js` before `wave.js`, and Phase-26/27's `tower_tesla.js`/`tower_warden.js`/`tower_mortar.js` after `tower.js`).
+- No functions — static HTML + inline CSS; loads the 26 `js/*.js` scripts (incl. `level_custom.js` after `path.js` and before `progress.js` — its boot registration needs the validator's spline helpers and the unlock floor counts stored levels — `levelgen_waves.js` before `wave.js`, and Phase-26/27's `tower_tesla.js`/`tower_warden.js`/`tower_mortar.js` after `tower.js`).
 
-## Tools & level data
-
-### `tools/build_levels.mjs`
-Build tool that reads every `levels/*.json`, validates it with the game's own validator inside a `vm` realm, and atomically generates the data-only `js/levels_external.js` (registration glue passes `difficulty` and `uuid` through). Entries are **sorted by difficulty (easy → normal → hard → nightmare) then alphabetically by name** before emission so players meet easier external levels first; the header also emits `var EXTERNAL_COUNT = N` (used by `progress.js` to keep all externals unlocked). Files missing a `uuid` get a fresh v4 uuid **written back to the .json** (only after the whole directory validates — a failing build never mutates files); two files sharing a uuid fail the build (shared-level dedupe).
-- Functions: `validateText(text)`; top-level flow: collect/sort `.json` files → validate all (1 MB cap, duplicate-uuid check, duplicate-name check) → persist auto-added uuids → emit script or exit 1 without writing.
-
-### `tools/build_levels.bat`
-Windows double-clickable wrapper that checks for Node.js on PATH and runs `node tools/build_levels.mjs` from the project root.
+## Level data (backup & sharing format)
 
 ### `levels/riverbend.json`
-Example external level ("Riverbend"): a 9-waypoint path with 6 explicit per-wave enemy lists and `"difficulty": "normal"`, used as the reference for the level-file schema (kept under its bare name).
+Example level ("Riverbend"): a 9-waypoint path with 6 explicit per-wave enemy lists, `"difficulty": "normal"` and a `uuid`, used as the reference for the `.json` level-file schema — importable through the generator page's Import button (kept under its bare name).
 
 ### `levels/README.md`
-Documentation for adding/sharing external levels: the pure-data security model, the build workflow (`.bat` or `node tools/build_levels.mjs`), play order (easier difficulty first, then alphabetical — all externals unlocked), and the full JSON schema (incl. the `difficulty` field; waypoints are spline control points — any segment shape allowed, corners round; angled crossovers allowed, U-turns/double-backs rejected).
+Documentation for the `.json` level format: levels live in the browser's localStorage store (created on the generator page or imported), this folder is the backup/sharing format, the pure-data security model, and the full JSON schema (incl. the `difficulty` and `uuid` fields; waypoints are spline control points — any segment shape allowed, corners round; angled crossovers allowed, U-turns/double-backs rejected).
 
 ## Smoke tests (headless, run with `node`, all in `tests/`)
 

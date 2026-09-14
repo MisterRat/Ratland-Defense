@@ -201,10 +201,12 @@ function lgRenderCards(opts) {
   });
 }
 
-// Create all checked candidates (save + register), then report. Names come
-// from each card's editable input (silly name by default); the uuid — not the
-// name — is what makes each level unique, so no name uniquifying is needed.
-async function lgCreate() {
+// Create all checked candidates (localStorage save + in-memory register),
+// then report. Names come from each card's editable input (silly name by
+// default); the uuid — not the name — is what makes each level unique, so no
+// name uniquifying is needed. No files are written: Export is how levels leave
+// this browser.
+function lgCreate() {
   const opts = lgReadOptions();
   if (!opts.towers.length) { document.getElementById('lgMsg').textContent = 'Pick at least one tower type.'; return; }
   const picked = lgState.candidates.filter((c, i) => document.getElementById('lgPick' + i).checked);
@@ -214,13 +216,11 @@ async function lgCreate() {
     const typed = el ? el.value.trim() : '';
     cand._name = typed || cand._name || 'Generated Level';
   }
-  const results = await lgCreateLevels(picked, { ...opts });
-  const saved = results.filter(r => r.save && r.save.mode === 'fsa').length;
-  const downloaded = results.filter(r => r.save && r.save.mode === 'download').length;
+  const results = lgCreateLevels(picked, opts);
   const registered = results.filter(r => r.registered).length;
   document.getElementById('lgMsg').textContent =
-    `Created ${registered} level(s) — ${saved} saved to files, ${downloaded} downloaded. ` +
-    (downloaded ? 'Downloaded files: move them into levels/ and run the build tool to make them permanent.' : 'They are playable now (open index.html).');
+    `Created ${registered} level(s) — saved to this browser's level store and playable now (open index.html). ` +
+    'Use Export to back them up or share them as a .json file.';
   lgState.candidates = [];
   document.getElementById('lgCards').innerHTML = '';
 }
@@ -228,11 +228,77 @@ async function lgCreate() {
 // Try Again: fresh 4 candidates, same options.
 function lgTryAgain() { lgGenerate(); }
 
+// Download the whole custom-level store as one .json file (backup / share).
+// A friend imports it back with the Import button; single files from the
+// levels/ folder import the same way.
+function lgExport() {
+  const data = exportCustomLevels();
+  const count = getCustomLevels().length;
+  if (!count) { document.getElementById('lgMsg').textContent = 'Nothing to export — create or import levels first.'; return; }
+  try {
+    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tower-defense-levels.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    document.getElementById('lgMsg').textContent = `Exported ${count} level(s) to tower-defense-levels.json.`;
+  } catch (err) {
+    document.getElementById('lgMsg').textContent = 'Export failed: ' + err.message;
+  }
+}
+
+// Import .json level files (single def or an array — an export file or the
+// levels/ folder format). Every entry is validated; duplicates are skipped.
+function lgImport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.multiple = true;
+  input.addEventListener('change', () => {
+    const files = [...input.files];
+    if (!files.length) return;
+    let added = 0, skipped = 0, done = 0;
+    const problems = [];
+    for (const f of files) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        let parseOk = false, defs;
+        try { defs = JSON.parse(String(reader.result)); parseOk = true; } catch (err) { /* fall through */ }
+        if (!parseOk || !defs || typeof defs !== 'object') {
+          skipped += 1;
+          problems.push(f.name + ': not a level object or array');
+        } else {
+          const r = importLevelDefs(defs); // single def or array — both handled
+          added += r.added; skipped += r.skipped;
+          problems.push(...r.problems.map(p => f.name + ': ' + p));
+        }
+        if (++done === files.length) lgImportReport(files.length, added, skipped, problems);
+      };
+      reader.readAsText(f);
+    }
+  });
+  input.click();
+}
+
+// Report line for imports (called once every file has finished reading).
+function lgImportReport(fileCount, added, skipped, problems) {
+  const msg = `Imported ${added} new level(s) from ${fileCount} file(s)` +
+    (skipped ? `, skipped ${skipped} (duplicate or invalid)` : '') + '.';
+  document.getElementById('lgMsg').textContent = problems.length
+    ? msg + ' Problems: ' + problems.slice(0, 5).join(' | ')
+    : msg;
+}
+
 // Wire up the page once the DOM is ready.
 function lgInit() {
   document.getElementById('lgGenerate').addEventListener('click', lgGenerate);
   document.getElementById('lgCreate').addEventListener('click', () => lgCreate());
   document.getElementById('lgTryAgain').addEventListener('click', lgTryAgain);
+  document.getElementById('lgExport').addEventListener('click', lgExport);
+  document.getElementById('lgImport').addEventListener('click', lgImport);
   // Select All / Clear: flips every enemy checkbox; auto-flips to uncheck-all
   // when everything is already checked.
   const wrap = document.getElementById('lgEnemies');

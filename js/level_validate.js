@@ -1,5 +1,5 @@
 // Pure level validation: no game state, no DOM. Shared by the registry
-// (console warnings on bad external files), tools/build_levels.mjs and smoke
+// (boot registration of stored custom levels), the import flow and smoke
 // tests. validateLevelDef(def) -> { ok: boolean, problems: string[] }
 
 const isInt = v => Number.isInteger(v);

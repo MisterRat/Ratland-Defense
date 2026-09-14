@@ -113,14 +113,18 @@
         <button class="tower-btn" id="lgCreate">✅ Create</button>
         <button class="tower-btn" id="lgTryAgain">🔄 Try Again</button>
       </div>
+      <div style="display:flex; gap:10px;">
+        <button class="tower-btn" id="lgExport">💾 Export levels</button>
+        <button class="tower-btn" id="lgImport">📂 Import levels</button>
+      </div>
       <div id="lgMsg">Configure the options, then press Generate.</div>
       <div id="lgCards"></div>
       <div class="lg-instructions">
-        <h2>📋 How to add your levels to the game</h2>
+        <h2>📋 How levels work here</h2>
         <ol>
-          <li>Press <strong>Create</strong>, then in the save dialog choose the <code>levels/</code> folder as the destination — every level file must live inside the <code>Levels</code> folder of this project (next to <code>riverbend.json</code>).</li>
-          <li>Once your files are in <code>levels/</code>, run <code>build_levels.bat</code> from the <code>Tools</code> folder (double-click it, or run it from a terminal) to rebuild the level list. The new levels will then appear in the game's level select.</li>
-          <li>If you saved somewhere else, move the downloaded .json files into <code>levels/</code> first, then run the build.</li>
+          <li><strong>Create</strong> saves your levels to this browser's level store (localStorage) — they are playable immediately in the game and survive reloads. No files, no build step.</li>
+          <li><strong>Export</strong> downloads all your stored levels as one <code>.json</code> file — keep it as a backup or send it to a friend.</li>
+          <li><strong>Import</strong> brings levels in from <code>.json</code> files: an export file, or individual level files like those in the project's <code>levels/</code> folder. Duplicates (same uuid) are skipped; invalid files are reported.</li>
         </ol>
       </div>
     </div>

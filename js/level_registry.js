@@ -1,10 +1,10 @@
 // Level registry: the single ordered list of all playable levels.
-// Built-in levels (js/levels.js) are seeded first; external levels come from
-// js/levels_external.js — a generated data-only script (built from the pure
-// .json files in levels/ by tools/build_levels.mjs) whose inline glue pushes
-// validated defs onto _levels at boot (it loads after path.js, so it can run
-// validateLevelDef). The combined list drives the dropdown, levelIndex, unlock
-// progression, best scores and auto-advance.
+// Built-in levels (js/levels.js) are seeded first; custom levels come from the
+// localStorage store in js/level_custom.js — created on the generator page or
+// imported from .json files (the levels/ folder format or a friend's export) —
+// whose boot registration pushes validated defs onto _levels (it loads after
+// path.js, so it can run validateLevelDef). The combined list drives the
+// dropdown, levelIndex, unlock progression, best scores and auto-advance.
 
 const _levels = [];   // normalized level defs, combined order
 

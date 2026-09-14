@@ -365,6 +365,128 @@ next wave is pending, otherwise it falls back to a Game Stats readout.
 - [x] Full regression from tests/ (all 35 smoke tests pass)
 - [x] FILE_SUMMARY.md updated
 
+## Phase 36: Two new generator map types — Switchback + Spiral (Bloons-style)
+
+The generator pool (`js/levelgen_paths.js`) has arc/sbend/loop/weave/crossroads
+but no true switchback and no spiral/ring shape — both are staples of Bloons /
+Kingdom Rush map design. Also: the built-in level 4 named "Switchback" is just a
+3-bend zigzag (row 9 → 3 → 14 → 6) that never switches back; it gets renamed
+**Zigzag** so the name is free for the real shape. Renaming (not removing) keeps
+all level indices and the L5/L6 tower+enemy unlock gates stable.
+
+### Design
+
+- **`tplSwitchback`** — four horizontal lanes alternating direction, Bloons/
+  Kingdom-Rush style: enter on a top row (1–2), run right to xR (19–24), drop a
+  short spacing (3–4 rows), run left to xL (3–7), repeat down to a bottom row
+  (≤14), exit right. **Zero crossovers**; long path (~80+ cells) with wide
+  buildable pockets between the lanes. Same shape family as the built-in
+  "Zigzag", but four lanes instead of three and fully randomized.
+- **`tplSpiral`** — a full rectangular ring that spirals back inward and exits:
+  enter top band (row 4–6), sweep right along the top to xR (20–24), down the
+  right side to rB (13–15), left along the bottom to xL (3–7), up the left side
+  to a middle inner-lane row rC, then rightward along the inner lane straight
+  to the exit — **crossing the right column once** (perpendicular crossover at
+  (xR, rC)). Lanes are >=3 rows apart so corner bows (~1 cell deep, up to ~65px
+  on long runs) can't reach a parallel run; rB <= 15 keeps the bottom corners'
+  downward bow inside the grid. ~88 cells, 1–2 crossovers (the second is a
+  benign corner-rounding cell, not a double-walk).
+
+Both templates emit axis-aligned waypoints; every candidate still passes the
+game's own `validateLevelDef` (bounds, no same-direction double-walk —
+crossovers are perpendicular only). Note from measurement: the Catmull-Rom
+corner bow is deeper than "one cell" — up to ~65px into the interior quadrant,
+extending along the run for long adjacent segments — so lanes need >=3 rows of
+spacing and rB <= 15 to stay legal.
+
+### Implementation steps
+- [x] PLAN.md Phase 36 section written
+- [x] js/levels.js: built-in level 4 renamed "Switchback" → "Zigzag" (waypoints unchanged)
+- [x] js/levelgen_paths.js: `tplSwitchback` + `tplSpiral`, registered in `LG_TEMPLATES`, header comment updated
+- [x] tests/smoke_levelgen.mjs: template-pool assertion extended to 7 templates
+- [x] Scratch validation: 400 seeds × both templates — all validate, no self-intersection, switchback 0 crossovers (avg length 84), spiral 1–2 crossovers (avg length 88; the extra one is a benign corner-rounding cell)
+- [x] Full regression from tests/ (36/36 pass)
+- [x] FILE_SUMMARY.md updated
+
+### Follow-up candidate
+- A built-in "Spiral" campaign level (append to LEVELS — safe index-wise, but
+  shifts external indices in smoke_boot.mjs; deferred).
+
+## Phase 37: localStorage-only levels — kill the build step — IN PROGRESS
+
+User request: the level generator saves levels to localStorage (already does)
+and the game loads them dynamically at startup — **no more saving .json files
+to disk, no more `build_levels.mjs`**. The `levels/` folder is kept as a
+backup/share artifact; at startup its levels land in localStorage via the new
+Import button.
+
+### Decisions (confirmed with user)
+- **No committed seed bundle**: `js/levels_external.js` is deleted; no file is
+  generated into the repo anymore. A fresh clone starts with the 6 built-ins
+  only; everyone imports their own levels once.
+- **Generator page gets Export + Import buttons** (in addition to Create):
+  - **Export**: downloads the ENTIRE custom-level store as one
+    `tower-defense-levels.json` array (backup / share with friends).
+  - **Import**: file picker accepting `.json` — either a single level def or an
+    array of defs (the levels/ folder files, or an export file). Every entry is
+    validated with `validateLevelDef`; missing uuids get fresh v4s; dedupe by
+    uuid (existing entry wins); valid new entries are saved to localStorage and
+    registered in memory. Invalid entries are skipped and reported.
+- **Create** now saves to localStorage + registers only (no file picker, no
+  download). Message tells the player the level is playable and to use Export
+  for backup/sharing.
+
+### Design
+- `js/level_custom.js` gains: `importLevelDefs(defs)` (validate → stamp missing
+  uuids → dedupe by uuid against existing store + registry → save + register
+  new ones; returns `{ added, skipped, replaced }`), `exportCustomLevels()`
+  (pretty JSON string of the whole store). Existing functions unchanged.
+- `js/levelgen_save.js`: drop `lgSaveFile` (File System Access API + download);
+  `lgCreateLevels` becomes sync — build defs, `saveCustomLevel` each, register
+  in memory. Keep `lgFilename`/`lgBuildDef` (Export naming + def building).
+- `js/levelgen_ui.js`: `lgCreate` rewritten for the localStorage flow; new
+  `lgExport()` (Blob download of `exportCustomLevels()`) and `lgImport()`
+  (hidden `<input type=file>` wired to a button; reads text, JSON.parses,
+  calls `importLevelDefs`, reports counts).
+- `js/progress.js`: `externalCount()` → `customCount()` =
+  `getCustomLevels().length` (level_custom.js loads before progress.js in
+  index.html; guarded for bundles without it). Unlock floor = built-ins +
+  custom levels, so imported/generated levels are always playable.
+- `js/ui.js`: `buildLevelSelect` open-rule simplifies to
+  `i < unlocked || lvl.custom || i >= LEVELS.length` (no external special-case).
+- `index.html`: drop the `js/levels_external.js` script tag; reorder
+  `level_custom.js` BEFORE `progress.js`.
+- `levelgen.html`: replace the "How to add your levels" instructions with the
+  new localStorage flow (Create → playable now; Export → backup/share .json;
+  Import → bring in levels from the levels/ folder or a friend's export file);
+  add Export/Import buttons + hidden file input.
+- **Deleted**: `js/levels_external.js`, `tools/build_levels.mjs`,
+  `tools/build_levels.bat`. Kept: `levels/riverbend.json` + `levels/README.md`
+  (rewritten: levels live in localStorage; the folder is the backup/share
+  format; Import at startup).
+
+### Implementation steps
+- [x] PLAN.md Phase 37 section written
+- [x] js/level_custom.js: `importLevelDefs`, `exportCustomLevels` (+ `customUuid` fallback — index.html never loads levelgen_names.js; uuid-less files dedupe by name even against an earlier stamped import)
+- [x] js/levelgen_save.js: drop file-saving; sync create flow (now fully DOM-free)
+- [x] js/levelgen_ui.js: lgCreate rewrite + lgExport/lgImport (+ lgImportReport)
+- [x] levelgen.html: Export/Import buttons, new "How levels work here" instructions
+- [x] js/progress.js: externalCount → customCount (localStorage-backed)
+- [x] js/ui.js: buildLevelSelect open-rule cleanup
+- [x] index.html: drop levels_external.js tag; level_custom.js after path.js + before progress.js (validation needs hasSelfIntersection/sampleSpline)
+- [x] Delete js/levels_external.js, tools/build_levels.mjs, tools/build_levels.bat (+ empty tools/ dir)
+- [x] levels/README.md rewritten for the localStorage flow
+- [x] Tests: smoke_boot (store-seeded Riverbend, order guard), smoke_levels (store-seeded), smoke_progress (customCount floor via 2 seeded defs), smoke_levelgen (new section 5: import/export round-trip), delete smoke_build.mjs; also fixed smoke_paused_start/smoke_speed (no build run) and smoke_lgenemies (Export/Import ids in DOM stub)
+- [x] Full regression from tests/ — all 34 pass
+- [x] FILE_SUMMARY.md updated
+
+### Notes from implementation
+- Import dedupe is uuid-based, but a uuid-less file re-imports by NAME against
+  the store (so re-importing riverbend.json never duplicates it, even though
+  the first import stamped a uuid on the stored copy).
+- `importLevelDefs` returns `{ added, skipped, problems }` (not `replaced` —
+  existing entries always win; Create's overwrite path is saveCustomLevel).
+
 ## Next (unstarted)
 
 - Playfield-grow bug FIXED in Phase 31 (item 4) — verified headlessly:

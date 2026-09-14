@@ -97,10 +97,10 @@ class UI {
     getLevels().forEach((lvl, i) => {
       const opt = document.createElement('option');
       opt.value = String(i);
-      // Custom levels (from the generator page) and external levels
-      // (js/levels_external.js — appended after the built-ins) are always
-      // playable; only built-in levels past progress.unlocked stay locked.
-      const open = i < this.progress.unlocked || !!lvl.custom || i >= LEVELS.length;
+      // Custom levels (localStorage store — created on the generator page or
+      // imported) are always playable; only built-in levels past
+      // progress.unlocked stay locked.
+      const open = i < this.progress.unlocked || !!lvl.custom;
       const diff = (typeof LG_DIFFICULTY !== 'undefined' && LG_DIFFICULTY[lvl.difficulty])
         ? LG_DIFFICULTY[lvl.difficulty].label : 'Normal';
       opt.textContent = open
