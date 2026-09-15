@@ -131,11 +131,11 @@ function tplSwitchback(rng) {
 //  - lanes are >=3 rows apart, so corner bows (~1 cell deep, up to ~65px on
 //    long runs) can never reach a parallel run — no same-direction double-walk;
 //  - rA >= 4 leaves headroom above the entry run for the top-right bow;
-//  - rB <= 15 keeps the bottom corners' downward bow inside the grid.
+//  - rB <= rows-2 keeps the bottom corners' downward bow inside the grid.
 function tplSpiral(rng) {
   const rA = rngInt(rng, 4, 6); // entry row (top band)
   const xR = rngInt(rng, 20, 24); // right side column
-  const rB = rngInt(rng, 13, 15); // bottom row (off the grid edge)
+  const rB = rngInt(rng, 13, LG_ROWS - 2); // bottom row (off the grid edge)
   const xL = rngInt(rng, 3, 7); // left side column
   const rC = rngInt(rng, rA + 3, rB - 3); // inner lane row (strictly inside the ring)
   return [[-1, rA], [xR, rA], [xR, rB], [xL, rB], [xL, rC], [LG_COLS, rC]];

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Tower Defense — Level Generator</title>
+<title>Ratland Defense — Level Generator</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; background: #14171c; color: #dfe6ee;
@@ -85,7 +85,10 @@
 </head>
 <body>
   <h1>🎲 Level Generator</h1>
-  <a class="back" href="index.html">← Back to game</a>
+  <div style="display:flex; gap:14px;">
+    <a class="back" href="index.html">← Back to game</a>
+    <a class="back" href="levels.html">📦 Stored Levels</a>
+  </div>
   <div id="wrap">
     <!-- LEFT: enemy legend (index.html style) with a checkbox per type -->
     <div id="legend">
@@ -113,18 +116,13 @@
         <button class="tower-btn" id="lgCreate">✅ Create</button>
         <button class="tower-btn" id="lgTryAgain">🔄 Try Again</button>
       </div>
-      <div style="display:flex; gap:10px;">
-        <button class="tower-btn" id="lgExport">💾 Export levels</button>
-        <button class="tower-btn" id="lgImport">📂 Import levels</button>
-      </div>
       <div id="lgMsg">Configure the options, then press Generate.</div>
       <div id="lgCards"></div>
       <div class="lg-instructions">
         <h2>📋 How levels work here</h2>
         <ol>
           <li><strong>Create</strong> saves your levels to this browser's level store (localStorage) — they are playable immediately in the game and survive reloads. No files, no build step.</li>
-          <li><strong>Export</strong> downloads all your stored levels as one <code>.json</code> file — keep it as a backup or send it to a friend.</li>
-          <li><strong>Import</strong> brings levels in from <code>.json</code> files: an export file, or individual level files like those in the project's <code>levels/</code> folder. Duplicates (same uuid) are skipped; invalid files are reported.</li>
+          <li>This page only <em>creates</em> levels. Manage them — <strong>Import</strong> <code>.json</code> files, <strong>Export</strong> one level or all of them, <strong>Delete</strong> a level you no longer want — on the <a href="levels.html" style="color:#8fd0ff;">Stored Levels page</a>.</li>
         </ol>
       </div>
     </div>

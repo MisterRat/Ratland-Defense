@@ -50,7 +50,7 @@ function checkPureData(value, depth, path, problems) {
 //  - the sampled spline stays inside the grid rect (one cell of slack on the
 //    left/right for the off-screen spawn/exit centers); corners must not bow
 //    outside the canvas
-const MAX_WAYPOINTS = 200; // a sane path on the 28×18 grid needs far fewer
+const MAX_WAYPOINTS = 200; // a sane path on the 28×16 grid needs far fewer
 
 function validateWaypoints(wps, problems) {
   if (!Array.isArray(wps) || wps.length < 2) {

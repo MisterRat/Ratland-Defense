@@ -1,2 +1,8 @@
 # Smoke / temporary test files live in tests/ and are not committed.
 /tests/
+
+# Desktop build output (reproducible via compile.bat on Windows).
+*.exe
+build/
+dist/
+__pycache__/

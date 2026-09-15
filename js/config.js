@@ -1,8 +1,8 @@
 // Static game configuration: grid, path, towers, enemies, waves.
 
-const GRID = { cols: 28, rows: 18, cell: 50 };
+const GRID = { cols: 28, rows: 16, cell: 50 };
 const CANVAS_W = GRID.cols * GRID.cell; // 1400
-const CANVAS_H = GRID.rows * GRID.cell; // 900
+const CANVAS_H = GRID.rows * GRID.cell; // 800
 
 // Path waypoints in grid coordinates. x=-1 / x=cols means off-screen spawn/exit.
 // Level 1 (classic snake, rescaled to the bigger grid). See js/levels.js for
@@ -70,14 +70,14 @@ const TOWER_TYPES = {
     name: 'Railgun', cost: 300, color: '#69f0ff', unlockLevel: 6, img: 'assets/railgun.png',
     range: 260, damage: 70, fireRate: 0.35, projSpeed: 1600, splash: 0, slow: 0,
     pierce: 5,
-    desc: 'Piercing slug: hits up to 5 enemies in a line; damage halves per enemy.',
+    desc: 'Piercing slug: up to 5 enemies in a line; damage halves per enemy.',
   },
   // Phase 26: five new towers, all unlock at level 7 (external levels only).
   tesla: {
     name: 'Tesla', cost: 200, color: '#69f0ff', unlockLevel: 7, img: 'assets/tesla.png',
     range: 140, damage: 18, fireRate: 1.8, projSpeed: 0, splash: 0, slow: 0,
     chain: { hops: 3, hopRadius: 90, falloff: 0.8 },
-    desc: 'Chain lightning: instant bolt + 3 hops (×0.8 each, r90). Hits phased enemies.',
+    desc: 'Chain lightning: bolt + 3 hops (×0.8 each). Also hits phased enemies.',
   },
   venom: {
     name: 'Venom', cost: 110, color: '#9be15d', unlockLevel: 7, img: 'assets/venom.png',
@@ -95,14 +95,14 @@ const TOWER_TYPES = {
     name: 'Mint', cost: 150, color: '#4fd8a0', unlockLevel: 7, img: 'assets/mint.png',
     range: 0, damage: 0, fireRate: 0, projSpeed: 0, splash: 0, slow: 0,
     income: { amount: 10, interval: 8 },
-    desc: 'Economy: +$10 every 8s (scales with level). Income does NOT count toward score.',
+    desc: 'Economy: +$10 every 8s (scales with level). Not counted in score.',
   },
   warden: {
     name: 'Warden', cost: 300, color: '#ffd76a', unlockLevel: 7, img: 'assets/warden.png',
     range: 100, damage: 0, fireRate: 0, projSpeed: 0, splash: 0, slow: 0,
     aura: { multiplier: 1.25 },
     dynamicCost: true,
-    desc: 'Aura: +25% damage to towers in range (multiplicative). First $300, each next +$100.',
+    desc: 'Aura: +25% damage to towers in range. First $300, each next +$100.',
   },
   // Mortar: dumb artillery. No intrinsic damage — the shell carries the stats
   // of the selected ammo tower. `range` is the blast radius (not a targeting
@@ -112,7 +112,7 @@ const TOWER_TYPES = {
     range: 100, damage: 0, fireRate: 0.25, projSpeed: 350, splash: 0, slow: 0,
     ammoDefault: 'cannon',
     ammoTypes: ['cannon', 'flame', 'frost', 'tesla', 'venom'],
-    desc: 'Lobs a shell at a chosen path point every 4s (slowest tower). Pick ammo in the panel.',
+    desc: 'Lobs a shell at a chosen path point every 4s. Pick ammo in the panel.',
   },
 };
 

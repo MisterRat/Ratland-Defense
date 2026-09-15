@@ -1,5 +1,5 @@
 // Level definitions. Each level is a set of waypoints in grid coordinates
-// (grid is 28x18, see config.js). x=-1 = off-screen spawn, x=cols = exit.
+// (grid is 28x16, see config.js). x=-1 = off-screen spawn, x=cols = exit.
 // All segments are axis-aligned. Perpendicular 90° crossovers are allowed
 // (e.g. "Crossroads"); walking the same cell twice in the same direction
 // (U-turns/loops) is not.

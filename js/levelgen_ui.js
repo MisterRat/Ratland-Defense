@@ -3,7 +3,10 @@
 // (canvas diagram + stats + checkbox), Create / Try Again buttons. Loaded by
 // levelgen.html only. Phase 29: the tower roster (which towers are buildable
 // on the generated level) is selected with the same checkbox pattern as the
-// enemy list, and flows into the saved def's `towers` field.
+// enemy list, and flows into the saved def's `towers` field. Phase 40: this
+// page ONLY creates levels (Create saves them to the localStorage store) —
+// Import / Export / Delete management moved to the Stored Levels page
+// (levels.html + js/levels_store_ui.js).
 
 const LG_DIAGRAM_CELL = 10; // px per grid cell in the preview canvas
 
@@ -220,7 +223,7 @@ function lgCreate() {
   const registered = results.filter(r => r.registered).length;
   document.getElementById('lgMsg').textContent =
     `Created ${registered} level(s) — saved to this browser's level store and playable now (open index.html). ` +
-    'Use Export to back them up or share them as a .json file.';
+    'Manage them (export / import / delete) on the Stored Levels page.';
   lgState.candidates = [];
   document.getElementById('lgCards').innerHTML = '';
 }
@@ -228,77 +231,11 @@ function lgCreate() {
 // Try Again: fresh 4 candidates, same options.
 function lgTryAgain() { lgGenerate(); }
 
-// Download the whole custom-level store as one .json file (backup / share).
-// A friend imports it back with the Import button; single files from the
-// levels/ folder import the same way.
-function lgExport() {
-  const data = exportCustomLevels();
-  const count = getCustomLevels().length;
-  if (!count) { document.getElementById('lgMsg').textContent = 'Nothing to export — create or import levels first.'; return; }
-  try {
-    const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'tower-defense-levels.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    document.getElementById('lgMsg').textContent = `Exported ${count} level(s) to tower-defense-levels.json.`;
-  } catch (err) {
-    document.getElementById('lgMsg').textContent = 'Export failed: ' + err.message;
-  }
-}
-
-// Import .json level files (single def or an array — an export file or the
-// levels/ folder format). Every entry is validated; duplicates are skipped.
-function lgImport() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json,application/json';
-  input.multiple = true;
-  input.addEventListener('change', () => {
-    const files = [...input.files];
-    if (!files.length) return;
-    let added = 0, skipped = 0, done = 0;
-    const problems = [];
-    for (const f of files) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        let parseOk = false, defs;
-        try { defs = JSON.parse(String(reader.result)); parseOk = true; } catch (err) { /* fall through */ }
-        if (!parseOk || !defs || typeof defs !== 'object') {
-          skipped += 1;
-          problems.push(f.name + ': not a level object or array');
-        } else {
-          const r = importLevelDefs(defs); // single def or array — both handled
-          added += r.added; skipped += r.skipped;
-          problems.push(...r.problems.map(p => f.name + ': ' + p));
-        }
-        if (++done === files.length) lgImportReport(files.length, added, skipped, problems);
-      };
-      reader.readAsText(f);
-    }
-  });
-  input.click();
-}
-
-// Report line for imports (called once every file has finished reading).
-function lgImportReport(fileCount, added, skipped, problems) {
-  const msg = `Imported ${added} new level(s) from ${fileCount} file(s)` +
-    (skipped ? `, skipped ${skipped} (duplicate or invalid)` : '') + '.';
-  document.getElementById('lgMsg').textContent = problems.length
-    ? msg + ' Problems: ' + problems.slice(0, 5).join(' | ')
-    : msg;
-}
-
 // Wire up the page once the DOM is ready.
 function lgInit() {
   document.getElementById('lgGenerate').addEventListener('click', lgGenerate);
   document.getElementById('lgCreate').addEventListener('click', () => lgCreate());
   document.getElementById('lgTryAgain').addEventListener('click', lgTryAgain);
-  document.getElementById('lgExport').addEventListener('click', lgExport);
-  document.getElementById('lgImport').addEventListener('click', lgImport);
   // Select All / Clear: flips every enemy checkbox; auto-flips to uncheck-all
   // when everything is already checked.
   const wrap = document.getElementById('lgEnemies');

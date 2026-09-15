@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Tower Defense</title>
+<title>Ratland Defense</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; background: #14171c; color: #dfe6ee;
@@ -11,7 +11,7 @@
   #hud { display: flex; gap: 18px; align-items: center; font-size: 15px; }
   #hud b { color: #ffd76a; }
   #wrap { display: flex; gap: 10px; }
-  /* align-self:flex-start keeps the canvas at its intrinsic 1400×900 — the
+  /* align-self:flex-start keeps the canvas at its intrinsic 1400×800 — the
      flex row's default (align-items:stretch) would otherwise stretch the
      canvas TALLER whenever #towerPanel (or the shop) grows the row's height,
      so the playfield visibly "grows" while a tower is selected. The row may
@@ -88,7 +88,7 @@
   </div>
   <div id="wrap">
     <div id="legend"></div>
-    <canvas id="game" width="1400" height="900"></canvas>
+    <canvas id="game" width="1400" height="800"></canvas>
     <div id="side">
       <div id="shop"></div>
       <div id="towerPanel"></div>
