@@ -9,10 +9,11 @@ class Enemy {
     this.type = typeName;
     this.def = def;
     this.levelIndex = levelIndex; // 0-based map level (drives resistance scaling)
-    // HP scales with wave number (1-based) and the level's difficulty hpMul
-    // (visible lever; defensive lookup — some test bundles lack getLevel).
-    const lvl = (typeof getLevel === 'function') ? getLevel(levelIndex) : null;
-    const diffKey = (lvl && LG_DIFFICULTY[lvl.difficulty]) ? lvl.difficulty : 'normal';
+    // HP scales with wave number (1-based) and the level's EFFECTIVE
+    // difficulty hpMul (Phase 44: player override or built-in key; defensive
+    // lookup — some test bundles lack getLevel/LG_DIFFICULTY).
+    const diffKey = (typeof effectiveDifficulty === 'function')
+      ? effectiveDifficulty(levelIndex) : 'normal';
     const hpMul = (LG_DIFFICULTY[diffKey] && LG_DIFFICULTY[diffKey].hpMul) || 1;
     const scale = (1 + (wave - 1) * 0.22) * hpMul;
     this.maxHp = Math.round(def.hp * scale);

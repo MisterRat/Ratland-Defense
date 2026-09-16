@@ -124,6 +124,22 @@ const handlers = {
     ui.syncShowRangesBtn();
     game.setMessage(view.showRanges ? 'Showing range circles for all towers.' : 'Range circles hidden (selected tower still shows its range).');
   },
+  // Phase 44: difficulty selector — persist the per-level override, then reload
+  // the current level so lives/wave scaling/HP apply immediately (paused start,
+  // same path as a dropdown switch).
+  onDifficulty(key) {
+    if (!DIFFICULTY_KEYS.includes(key)) return;
+    setLevelDifficulty(game.levelIndex, key);
+    loadLevel(levelIndex);
+    ui.refreshLevelSelect(); // option labels show the effective difficulty
+    game.setMessage(`Difficulty: ${LG_DIFFICULTY[key].label} — lives and enemy HP rescaled.`);
+  },
+  // Phase 44: background music on/off switch (persisted like mute).
+  onMusic() {
+    const on = Music.toggle();
+    ui.el.musicBtn.textContent = on ? '🎵 Music' : '🎵 Music: off';
+    game.setMessage(on ? 'Music on.' : 'Music off.');
+  },
   onSpeed() {
     speed = (speed === 1) ? 2 : (speed === 2 ? 3 : 1);
     saveSpeed(speed); // Phase 34: persist across reloads
@@ -215,6 +231,10 @@ function frame(now) {
   ui.syncWavePreview(); // next wave's composition while between waves
   ui.syncShowRangesBtn(); // keep the toggle label in sync with view.showRanges
   if (tutorial) tutorial.update(view, game);
+
+  // Phase 44: background music — real-time clock (unaffected by pause/speed),
+  // boss mode while a Colossus is on screen.
+  Music.update(dt, game.status === 'playing' && game.enemies.some(e => e.type === 'boss'));
 
   if (game.status !== lastStatus) {
     lastStatus = game.status;

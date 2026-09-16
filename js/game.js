@@ -29,11 +29,12 @@ class Game {
     return lvl ? lvl.startMoney : levelStartMoney(this.levelIndex);
   }
 
-  // Starting lives from the level's difficulty row (visible lever; falls back
-  // to START_LIVES when the registry or row is missing — legacy smoke bundles).
+  // Starting lives from the level's EFFECTIVE difficulty row (Phase 44: player
+  // override or built-in key; falls back to START_LIVES when the registry or
+  // row is missing — legacy smoke bundles).
   startingLives() {
-    const lvl = this.levelDef();
-    const diffKey = (lvl && LG_DIFFICULTY[lvl.difficulty]) ? lvl.difficulty : null;
+    const diffKey = (typeof effectiveDifficulty === 'function')
+      ? effectiveDifficulty(this.levelIndex) : null;
     return (diffKey && LG_DIFFICULTY[diffKey].lives) || START_LIVES;
   }
 

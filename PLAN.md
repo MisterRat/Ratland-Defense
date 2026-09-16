@@ -4,10 +4,77 @@
 
 ### 📌 Handoff Summary
 * **Completed Milestones:** Phases 1–38 (see archives). Phase 36: Switchback + Spiral generator templates, built-in "Switchback" renamed to "Zigzag". Phase 37: localStorage-only levels — the build step is gone; Create saves to the store. Phase 38: Stored Levels page with per-level Export + Delete. Phase 41: single-file desktop build (compile.py/compile.bat, pywebview/WebView2); native file dialogs for export/import in the compiled app.
-* **Current Focus:** Phase 42 — fit the game on a 1920×1080 screen: grid 18→16 rows (canvas 1400×800), tower descriptions ≤ ~70 chars.
+* **Current Focus:** Phase 44 — difficulty selector for built-in levels + background music (DONE). No active phase; awaiting the next user request.
 ---
 
-## Phase 43: Mortar targets anywhere + bigger blast — IN PROGRESS
+## Phase 44: Difficulty selector for built-ins + background music — DONE
+
+User request (gameplay improvements, no new enemies/towers): "Difficulty
+selector for built-ins" and "Background music".
+
+### Part A — Difficulty selector
+Replay ANY level at easy/normal/hard/nightmare. The `LG_DIFFICULTY` rows
+already drive every lever (hpMul, spawnGap, lives, bossEvery, wave size);
+today only the level's own `difficulty` key is consulted.
+
+- **Effective difficulty:** per-level override persisted in localStorage
+  (`towerDefenseDifficulty.v1` → `{ [levelIndex]: 'easy'|... }`), falling back
+  to the level's built-in `difficulty`. Helper `effectiveDifficulty(levelIndex)`
+  in config.js (reads `getLevel` late-bound, like its siblings).
+- **Threading:** every site that resolves a difficulty key from a level now
+  calls the helper — `enemy.js` (hpMul), `wave.js` (spawnGap + procedural
+  waves), `game.js` (startingLives). Explicit-wave levels keep their authored
+  lists; the override still changes hpMul/spawnGap/lives (difficulty is an
+  intensity dial, not a content edit).
+- **UI:** "🎚 Difficulty" dropdown in the HUD (4 options, current selection
+  highlighted), wired through `handlers.onDifficulty(key)` → persist + reload
+  the current level (same path as a dropdown switch: paused start, message).
+  The level dropdown's difficulty label shows the EFFECTIVE difficulty.
+- **Tests:** `tests/smoke_difficulty_select.mjs` — boots the real main.js
+  bundle: default = level's built-in; selecting Nightmare persists + reloads
+  (lives 10, boss cadence 3, hpMul 1.35 on a spawned enemy); switching levels
+  keeps per-level selections; invalid stored values fall back.
+
+### Part B — Background music
+A looping chiptune generated with Web Audio (same lazy-AudioContext pattern as
+SFX — no audio files, file://-safe). New `js/music.js`:
+
+- **Engine:** `Music` object mirroring SFX — `ensure()` on user gesture,
+  scheduler driven by the game loop (`Music.update(dt)` called from
+  `frame()`), a lookahead scheduler (0.3 s) that schedules 16th-note steps
+  ahead of `ctx.currentTime`, master gain through the same mute state as SFX
+  (one 🔊 button mutes everything).
+- **Two modes:** `normal` (calm minor-pentatonic bass + arpeggio, 108 BPM)
+  and `boss` (faster 132 BPM, driving bass + off-beat percussion) — the game
+  switches when a Colossus is on screen (checked each frame in main.js).
+- **Toggle:** "🎵 Music" HUD button (on by default, persisted like mute);
+  headless-safe no-op.
+- **Tests:** `tests/smoke_music.mjs` — stub AudioContext: scheduling produces
+  oscillator/noise nodes per mode, boss mode changes tempo, toggle persists +
+  suppresses, headless stays silent, mode switch mid-loop is clean.
+
+### Implementation steps
+- [x] PLAN.md Phase 44 section written
+- [x] js/config.js: `effectiveDifficulty(levelIndex)` + persistence helpers
+- [x] js/enemy.js / js/wave.js / js/game.js: resolve difficulty via the helper
+- [x] js/main.js: `onDifficulty` handler + per-frame music update; index.html button
+- [x] js/ui.js: difficulty dropdown build/sync; level labels use effective diff
+- [x] tests/smoke_difficulty_select.mjs
+- [x] js/music.js + index.html 🎵 button + ui wiring
+- [x] tests/smoke_music.mjs
+- [x] Full regression from tests/ — all 38 pass (scratch_phase36 fails pre-change, unrelated)
+- [x] FILE_SUMMARY.md updated
+
+### Result
+DONE. Every level can be replayed at easy/normal/hard/nightmare via the 🎚 HUD
+dropdown — the selection persists per level in localStorage and rescales lives,
+enemy HP, spawn pacing and (procedural) wave size on reload; the level dropdown's
+labels show each level's effective difficulty. Background music: a Web-Audio
+chiptune loop (`js/music.js`) with a calm 108 BPM normal mode and a driving
+132 BPM boss mode (auto-switches while a Colossus is on screen), its own 🎵
+on/off switch (persisted, default on) independent of the 🔊 global mute.
+
+## Phase 43: Mortar targets anywhere + bigger blast — DONE
 
 User request: "Allow Mortar to target any location on the map and make the AoE
 slightly bigger. That would make it more effective against switchbacks by
@@ -39,7 +106,7 @@ DONE. The Mortar can now be aimed at any tile on the map (blast circle 112px,
 ~2.2 cells) — a shell dropped between two switchback lanes covers parts of both.
 L2 blast ≈ 125px, L3 ≈ 140px via the usual LEVEL_SCALE.range.
 
-## Phase 42: Fit 1920×1080 — 16-row grid + shorter tower descriptions — IN PROGRESS
+## Phase 42: Fit 1920×1080 — 16-row grid + shorter tower descriptions — DONE
 
 User request: the game is ~200px too tall for a 1080p screen and the right
 column is wordy. Chosen fix (user-selected magnitude): shrink the grid by
@@ -169,7 +236,7 @@ their saved progress/scores/levels.
 - [x] levels.html: `<title>Ratland Defense — Stored Levels</title>`
 - [x] Full regression from tests/ — all 34 pass
 
-## Phase 38: Per-level export + delete (Stored Levels page) — IN PROGRESS
+## Phase 38: Per-level export + delete (Stored Levels page) — DONE
 
 User request: "can i not export individual levels?" + "i also need a way to delete
 levels if i decide i dont like a specific level" → a **Stored Levels page**

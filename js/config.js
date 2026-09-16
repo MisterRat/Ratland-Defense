@@ -27,6 +27,53 @@ function carryoverFactor(difficultyKey) {
 }
 const START_LIVES = 20;
 
+// Phase 44: per-level difficulty overrides. The player can replay any level at
+// a different intensity (easy/normal/hard/nightmare); the choice is persisted
+// per level index in localStorage and falls back to the level's built-in
+// `difficulty` key when absent. LG_DIFFICULTY (js/levelgen_waves.js) loads
+// after this file — every lookup below is late-bound, called at runtime only.
+const DIFF_KEY = 'towerDefenseDifficulty.v1';
+// The valid keys are DIFFICULTY_KEYS from js/level_validate.js (loaded later —
+// every use below is at runtime, so the late binding is safe).
+
+function loadDifficultyOverrides() {
+  try {
+    const raw = localStorage.getItem(DIFF_KEY);
+    if (!raw) return {};
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+    const out = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (DIFFICULTY_KEYS.includes(v)) out[k] = v; // drop corrupt/unknown values
+    }
+    return out;
+  } catch (err) { return {}; }
+}
+
+function saveDifficultyOverrides(overrides) {
+  try { localStorage.setItem(DIFF_KEY, JSON.stringify(overrides)); } catch (err) { /* no storage */ }
+}
+
+// Persist a per-level difficulty override (or clear it when key is null).
+function setLevelDifficulty(levelIndex, key) {
+  const overrides = loadDifficultyOverrides();
+  if (key === null || !DIFFICULTY_KEYS.includes(key)) delete overrides[String(levelIndex)];
+  else overrides[String(levelIndex)] = key;
+  saveDifficultyOverrides(overrides);
+}
+
+// The level's EFFECTIVE difficulty: the player's per-level override if set,
+// else the level's built-in `difficulty` key ('normal' fallback). This is the
+// single place every system resolves a difficulty key from a level — enemy HP
+// (enemy.js), spawn pacing + procedural waves (wave.js), starting lives
+// (game.js) all read through here.
+function effectiveDifficulty(levelIndex) {
+  const lvl = (typeof getLevel === 'function') ? getLevel(levelIndex) : null;
+  const base = (lvl && typeof LG_DIFFICULTY !== 'undefined' && LG_DIFFICULTY[lvl.difficulty])
+    ? lvl.difficulty : 'normal';
+  return loadDifficultyOverrides()[String(levelIndex)] || base;
+}
+
 // Default starting money for a 0-based map level index (clamped to the table).
 function levelStartMoney(levelIndex) {
   const i = Math.max(0, Math.min(LEVEL_START_MONEY.length - 1, levelIndex | 0));

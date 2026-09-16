@@ -26,8 +26,9 @@ function buildWave(wave, levelIndex = 0, explicitWaves = null) {
     }
     return list;
   }
-  const lvl = (typeof getLevel === 'function') ? getLevel(levelIndex) : null;
-  const diffKey = (lvl && LG_DIFFICULTY[lvl.difficulty]) ? lvl.difficulty : 'normal';
+  // Phase 44: the level's EFFECTIVE difficulty (player override or built-in).
+  const diffKey = (typeof effectiveDifficulty === 'function')
+    ? effectiveDifficulty(levelIndex) : 'normal';
   // childOnly types (spore) are never raw-spawned — only by a dying fission.
   const pool = Object.keys(ENEMY_TYPES).filter(k => isEnemyAvailable(k, levelIndex) && !ENEMY_TYPES[k].childOnly);
   return composeWaveList(wave, LG_DIFFICULTY[diffKey], pool);
@@ -71,9 +72,10 @@ class WaveManager {
     this.levelIndex = levelIndex; // 0-based map (drives enemy availability)
     this.totalWaves = totalWaves; // waves to clear THIS level (per-level)
     this.explicitWaves = explicitWaves; // optional per-wave lists (level file)
-    // Spawn pacing comes from the level's difficulty row (visible lever).
-    const lvl = (typeof getLevel === 'function') ? getLevel(levelIndex) : null;
-    const diffKey = (lvl && LG_DIFFICULTY[lvl.difficulty]) ? lvl.difficulty : 'normal';
+    // Spawn pacing comes from the level's EFFECTIVE difficulty row
+    // (Phase 44: player override or built-in key — visible lever).
+    const diffKey = (typeof effectiveDifficulty === 'function')
+      ? effectiveDifficulty(levelIndex) : 'normal';
     this.spawnGap = (LG_DIFFICULTY[diffKey] && LG_DIFFICULTY[diffKey].spawnGap) || 0.7;
     if (explicitWaves && explicitWaves.length > totalWaves) {
       console.warn(`[waves] level ${levelIndex + 1}: ${explicitWaves.length} waves listed but totalWaves is ${totalWaves}; extra entries ignored`);

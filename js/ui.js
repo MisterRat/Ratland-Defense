@@ -23,6 +23,8 @@ class UI {
       speedBtn: document.getElementById('speedBtn'),
       pauseBtn: document.getElementById('pauseBtn'),
       muteBtn: document.getElementById('muteBtn'),
+      musicBtn: document.getElementById('musicBtn'),
+      diffSelect: document.getElementById('diffSelect'),
       levelSelect: document.getElementById('levelSelect'),
       shop: document.getElementById('shop'),
       towerPanel: document.getElementById('towerPanel'),
@@ -101,8 +103,12 @@ class UI {
       // imported) are always playable; only built-in levels past
       // progress.unlocked stay locked.
       const open = i < this.progress.unlocked || !!lvl.custom;
-      const diff = (typeof LG_DIFFICULTY !== 'undefined' && LG_DIFFICULTY[lvl.difficulty])
-        ? LG_DIFFICULTY[lvl.difficulty].label : 'Normal';
+      // Phase 44: the label shows the EFFECTIVE difficulty (player override or
+      // built-in key) — the same value the waves actually use.
+      const diffKey = (typeof effectiveDifficulty === 'function')
+        ? effectiveDifficulty(i) : lvl.difficulty;
+      const diff = (typeof LG_DIFFICULTY !== 'undefined' && LG_DIFFICULTY[diffKey])
+        ? LG_DIFFICULTY[diffKey].label : 'Normal';
       opt.textContent = open
         ? `${i + 1} — ${lvl.name} · ${diff}${lvl.custom ? ' 🎲' : ''}`
         : `🔒 ${i + 1} — ${lvl.name} · ${diff} (locked)`;
@@ -119,6 +125,7 @@ class UI {
     this.el.levelSelect.value = String(this.game.levelIndex);
     const lvl = getLevel(this.game.levelIndex);
     this.el.waveMax.textContent = lvl ? lvl.totalWaves : TOTAL_WAVES;
+    this.syncDiffSelect(); // Phase 44: the dropdown follows the level's effective difficulty
   }
 
   // Rebuild the level list after a win unlocks a new level.
@@ -156,12 +163,52 @@ class UI {
     });
   }
 
+  // Phase 44: difficulty dropdown — the four LG_DIFFICULTY rows, current
+  // selection (effective difficulty) highlighted. Changing it reloads the level.
+  buildDiffSelect() {
+    const sel = this.el.diffSelect;
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (const key of DIFFICULTY_KEYS) {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = LG_DIFFICULTY[key].label;
+      sel.appendChild(opt);
+    }
+    this.syncDiffSelect();
+  }
+
+  syncDiffSelect() {
+    const sel = this.el.diffSelect;
+    if (!sel) return;
+    sel.value = (typeof effectiveDifficulty === 'function')
+      ? effectiveDifficulty(this.game.levelIndex) : 'normal';
+  }
+
+  // Phase 44: music on/off switch — label reflects the persisted state.
+  bindMusicButton() {
+    const btn = this.el.musicBtn;
+    if (!btn) return;
+    btn.textContent = Music.enabled ? '🎵 Music' : '🎵 Music: off';
+    btn.addEventListener('click', () => {
+      SFX.ensure(); // user gesture: safe to create/resume the context now
+      this.handlers.onMusic();
+    });
+  }
+
   bindButtons() {
     this.el.nextWaveBtn.addEventListener('click', () => this.handlers.onSendWave());
     if (this.el.showRangesBtn) this.el.showRangesBtn.addEventListener('click', () => this.handlers.onShowRanges());
     this.el.speedBtn.addEventListener('click', () => this.handlers.onSpeed());
     this.el.pauseBtn.addEventListener('click', () => this.handlers.onPause());
     this.bindMuteButton();
+    this.bindMusicButton();
+    if (this.el.diffSelect) {
+      this.buildDiffSelect();
+      this.el.diffSelect.addEventListener('change', e => {
+        this.handlers.onDifficulty(e.target.value);
+      });
+    }
     this.el.levelSelect.addEventListener('change', e => {
       this.handlers.onLevelChange(Number(e.target.value));
     });
