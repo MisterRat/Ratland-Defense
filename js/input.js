@@ -34,15 +34,17 @@ class Input {
     if (e.button === 2) return; // handled by contextmenu
     const { cx, cy } = this.cellFromEvent(e);
 
-    // Mortar aim mode: one click sets the impact point (path cells only).
+    // Mortar aim mode: one click sets the impact point — Phase 43: ANY
+    // in-bounds cell (not just path cells), so a shell can land between two
+    // switchback lanes and cover parts of both.
     if (this.view.aimingMortar) {
       const tower = this.view.aimingMortar;
       this.view.aimingMortar = null;
-      if (isPathCell(this.game.path, cx, cy)) {
+      if (cx >= 0 && cx < GRID.cols && cy >= 0 && cy < GRID.rows) {
         tower.targetPoint = cellCenter(cx, cy, GRID.cell);
         this.game.setMessage('Mortar target set.');
       } else {
-        this.game.setMessage('Mortar must target a path tile.');
+        this.game.setMessage('Mortar must target a tile on the map.');
       }
       return;
     }
@@ -57,7 +59,7 @@ class Input {
         // A freshly placed Mortar has no impact point yet: enter aim mode.
         if (placed.def.ammoTypes && !placed.targetPoint) {
           this.view.aimingMortar = placed;
-          this.game.setMessage('Mortar placed — click a path tile to set its target.');
+          this.game.setMessage('Mortar placed — click any tile to set its target.');
         }
       } else {
         this.game.setMessage('Cannot build there (path, occupied, or not enough money).');

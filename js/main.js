@@ -161,7 +161,7 @@ const handlers = {
   },
   onMortarRetarget(tower) {
     view.aimingMortar = tower;
-    game.setMessage('Click a path tile to set the Mortar target. Right-click / Esc cancels.');
+    game.setMessage('Click any tile to set the Mortar target. Right-click / Esc cancels.');
   },
 };
 

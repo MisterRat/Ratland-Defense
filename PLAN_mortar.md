@@ -1,19 +1,23 @@
 # PLAN_mortar — Mortar tower (design record)
 
 Status: **IMPLEMENTED in Phase 27** (approved by user; full suite 29/29 PASS).
+Phase 43: impact point may be **any in-bounds cell** (was path cells only) and
+the blast radius grew 100 → **112px**, so a shell can land between two
+switchback lanes and cover parts of both.
 
 A 12th tower: a slow, expensive, map-wide artillery piece. It does NOT lock
-onto a target — the player picks a **path cell** as the impact point. The Mortar
-is dumb: it fires at that fixed point on its cooldown timer, regardless of
-whether enemies are there. Every enemy inside the blast radius takes the
-damage + effect of the selected ammo type.
+onto a target — the player picks a **cell anywhere on the map** as the impact
+point (Phase 43; originally path cells only). The Mortar is dumb: it fires at
+that fixed point on its cooldown timer, regardless of whether enemies are
+there. Every enemy inside the blast radius takes the damage + effect of the
+selected ammo type.
 
 ## Stats
 
 ```js
 mortar: {
   name: 'Mortar', cost: 400, color: '#b08968', unlockLevel: 7, img: 'assets/mortar.png',
-  range: 100,              // blast radius (L1); scales ×1/1.12/1.25 with upgrades
+  range: 112,              // blast radius (L1, Phase 43; was 100); scales ×1/1.12/1.25 with upgrades
   damage: 0,               // no intrinsic damage — payload defines it
   fireRate: 0.25,          // 1 shell per 4s — slowest tower in the game
   projSpeed: 350,          // lobbed shell speed
@@ -31,13 +35,14 @@ Warden aura multiplies payload damage/burn/poison like every other tower.
 
 ## Firing rule (dumb, fire-and-forget)
 
-- After placement, the player **must** click a path cell to set the impact
-  point. Until then the Mortar does not fire.
+- After placement, the player **must** click a cell to set the impact point.
+  Until then the Mortar does not fire.
 - Once set, the Mortar fires at that fixed point on every cooldown tick —
   **regardless of whether any enemy is there**. It never re-aims.
 - A **"Retarget" button** in the tower panel enters aim mode for one click;
-  the next path-cell click moves the impact point. Esc / right-click cancels.
-- The impact point must be a **path cell** (the path passes through it).
+  the next click moves the impact point. Esc / right-click cancels.
+- Phase 43: the impact point may be **any in-bounds cell** (originally path
+  cells only) — targeting between two switchback lanes covers parts of both.
 
 ## Ammo payloads
 
@@ -69,8 +74,8 @@ lists needed.
 
 - Selected Mortar: blast-radius circle drawn at the **impact point** (not the
   tower position).
-- Aim mode: crosshair + blast preview at the hovered path cell (green if valid,
-  red if not a path cell).
+- Aim mode: blast preview at the hovered cell — Phase 43: always green (any
+  in-bounds cell is valid; the red-X invalid state is gone).
 - Tesla ammo blast: lightning lines between all in-blast enemies (fading
   `game.effects` entry, same style as chain lightning).
 - Shell in flight: small dark circle with a parabolic arc offset (cosmetic).
@@ -120,7 +125,7 @@ lists needed.
 2. **Fire condition** — fire regardless of enemies (dumb artillery).
 3. **Damage model** — payload = ammo tower's own stats × Mortar level scale.
 4. **Retarget UX** — "Retarget" button in panel → one-click aim mode.
-5. **Area limits** — path cells only.
+5. **Area limits** — path cells only (Phase 43: superseded — any in-bounds cell).
 6. **Tesla ammo** — area damage only; lightning lines drawn between in-blast
    enemies (visual), no chain outward.
 7. **Blast radius** — 100px base (~2 cells).

@@ -106,13 +106,15 @@ const TOWER_TYPES = {
   },
   // Mortar: dumb artillery. No intrinsic damage — the shell carries the stats
   // of the selected ammo tower. `range` is the blast radius (not a targeting
-  // range); the impact point is a player-chosen path cell (tower.targetPoint).
+  // range); the impact point is a player-chosen cell ANYWHERE on the map
+  // (tower.targetPoint) — Phase 43: any in-bounds cell, so a shell can land
+  // between two switchback lanes and cover parts of both.
   mortar: {
     name: 'Mortar', cost: 400, color: '#b08968', unlockLevel: 7, img: 'assets/mortar.png',
-    range: 100, damage: 0, fireRate: 0.25, projSpeed: 350, splash: 0, slow: 0,
+    range: 112, damage: 0, fireRate: 0.25, projSpeed: 350, splash: 0, slow: 0,
     ammoDefault: 'cannon',
     ammoTypes: ['cannon', 'flame', 'frost', 'tesla', 'venom'],
-    desc: 'Lobs a shell at a chosen path point every 4s. Pick ammo in the panel.',
+    desc: 'Lobs a shell at ANY map point every 4s. Pick ammo in the panel.',
   },
 };
 

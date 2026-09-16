@@ -7,6 +7,38 @@
 * **Current Focus:** Phase 42 — fit the game on a 1920×1080 screen: grid 18→16 rows (canvas 1400×800), tower descriptions ≤ ~70 chars.
 ---
 
+## Phase 43: Mortar targets anywhere + bigger blast — IN PROGRESS
+
+User request: "Allow Mortar to target any location on the map and make the AoE
+slightly bigger. That would make it more effective against switchbacks by
+allowing targeting in between 2 paths to cover parts of both."
+
+### Design
+- **Targeting:** drop the path-cell restriction — any in-bounds cell is a valid
+  impact point (aim mode already clamps to the grid; out-of-canvas hovers are
+  ignored). This lets a shell land in the gap between two switchback lanes and
+  cover parts of both. `isPathCell` no longer referenced from input.js.
+- **Blast radius:** 100 → **112 px** (~2.2 cells) — "slightly bigger". Upgrades
+  scale it via the usual LEVEL_SCALE.range (L2 ≈ 125, L3 ≈ 140).
+- **UI copy:** aim-mode messages and the Set Target button now say "any tile"
+  instead of "path tile"; the red-X invalid preview is gone (aim preview is
+  always a green blast circle at the hovered cell).
+
+### Implementation steps
+- [x] PLAN.md Phase 43 section written
+- [x] js/config.js: mortar `range` 100→112 + comment + desc
+- [x] js/input.js: aim click accepts any in-bounds cell
+- [x] js/render.js: `drawMortarAimPreview` — always green blast circle
+- [x] js/ui.js: Set Target button label; js/main.js: retarget message
+- [x] tests/smoke_mortar.mjs + smoke_phase34.mjs: expectations at 112
+- [x] Full regression from tests/ — all 36 pass
+- [x] FILE_SUMMARY.md updated
+
+### Result
+DONE. The Mortar can now be aimed at any tile on the map (blast circle 112px,
+~2.2 cells) — a shell dropped between two switchback lanes covers parts of both.
+L2 blast ≈ 125px, L3 ≈ 140px via the usual LEVEL_SCALE.range.
+
 ## Phase 42: Fit 1920×1080 — 16-row grid + shorter tower descriptions — IN PROGRESS
 
 User request: the game is ~200px too tall for a 1080p screen and the right

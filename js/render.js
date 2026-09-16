@@ -55,33 +55,20 @@ class Renderer {
     ctx.stroke();
   }
 
-  // Mortar aim mode: blast-radius preview at the hovered cell (green = valid
-  // path cell, red X = not a path cell).
+  // Mortar aim mode: blast-radius preview at the hovered cell. Phase 43: any
+  // in-bounds cell is a valid target, so the preview is always green.
   drawMortarAimPreview(ctx, game, view) {
     if (!view.hoverCell) return; // mouse hasn't entered the canvas yet
     const { cx, cy } = view.hoverCell;
     if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return;
-    const { cell } = GRID;
-    const ok = isPathCell(game.path, cx, cy);
-    const c = cellCenter(cx, cy, cell);
-    if (ok) {
-      ctx.fillStyle = 'rgba(103,212,111,0.18)';
-      ctx.strokeStyle = 'rgba(103,212,111,0.7)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, view.aimingMortar.range, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = 'rgba(229,83,61,0.3)';
-      ctx.fillRect(cx * cell, cy * cell, cell, cell);
-      ctx.strokeStyle = '#e5533d';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(c.x - 10, c.y - 10); ctx.lineTo(c.x + 10, c.y + 10);
-      ctx.moveTo(c.x + 10, c.y - 10); ctx.lineTo(c.x - 10, c.y + 10);
-      ctx.stroke();
-    }
+    const c = cellCenter(cx, cy, GRID.cell);
+    ctx.fillStyle = 'rgba(103,212,111,0.18)';
+    ctx.strokeStyle = 'rgba(103,212,111,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, view.aimingMortar.range, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
   }
 
   // Transient effects: chain lightning polylines and mortar explosion splashes.

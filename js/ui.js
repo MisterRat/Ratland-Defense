@@ -378,7 +378,7 @@ class UI {
 
       const retarget = document.createElement('button');
       retarget.className = 'tower-btn';
-      retarget.textContent = tower.targetPoint ? 'Change Target' : 'Set Target (click a path tile)';
+      retarget.textContent = tower.targetPoint ? 'Change Target' : 'Set Target (click any tile)';
       retarget.addEventListener('click', () => this.handlers.onMortarRetarget(tower));
       panel.appendChild(retarget);
     } else {
