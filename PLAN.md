@@ -72,7 +72,10 @@ enemy HP, spawn pacing and (procedural) wave size on reload; the level dropdown'
 labels show each level's effective difficulty. Background music: a Web-Audio
 chiptune loop (`js/music.js`) with a calm 108 BPM normal mode and a driving
 132 BPM boss mode (auto-switches while a Colossus is on screen), its own 🎵
-on/off switch (persisted, default on) independent of the 🔊 global mute.
+on/off switch (persisted, default on) independent of the 🔊 global mute. Audio
+unlock: the first pointerdown/keydown anywhere creates+resumes both contexts
+(autoplay policy), plus a bounded resume retry inside Music.update as a safety
+net for suspended contexts (file:// / webview).
 
 ## Phase 43: Mortar targets anywhere + bigger blast — DONE
 

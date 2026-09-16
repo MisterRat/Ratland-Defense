@@ -82,6 +82,7 @@ const Music = {
   step: 0,                     // absolute step counter (loops via % steps)
   nextTime: 0,                 // ctx time of the next unscheduled step
   LOOKAHEAD: 0.35,             // seconds of scheduling ahead
+  _resumeTries: 0,             // bounded resume retries while the ctx is suspended
 
   // Create the context + music gain. Called from a user gesture (any HUD
   // button click) so the browser allows audio; safe to call repeatedly.
@@ -117,7 +118,20 @@ const Music = {
   update(dt, boss) {
     if (!this.enabled) return;
     const ctx = this.ensure();
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx) return;
+    // Autoplay policy: the context is created on the first HUD gesture but
+    // some browsers still leave it SUSPENDED (especially when the page was
+    // opened via file:// or an embedded webview). Retry resume() a bounded
+    // number of times — each call happens inside a frame that follows user
+    // interaction, so once the browser allows audio the loop starts.
+    if (ctx.state === 'suspended') {
+      if (this._resumeTries < 10) {
+        this._resumeTries++;
+        ctx.resume().catch(() => {});
+      }
+      return;
+    }
+    this._resumeTries = 0;
     // The 🔊 Sound button mutes everything: duck the music gain while muted.
     if (this.gain) this.gain.gain.value = SFX.muted ? 0 : 0.5;
     const mode = boss ? 'boss' : 'normal';

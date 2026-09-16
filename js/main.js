@@ -210,6 +210,18 @@ setPaused(true);
 // Phase 34: the button label must reflect the RESTORED speed (the HTML hardcodes "1x").
 ui.el.speedBtn.textContent = `Speed: ${speed}x`;
 
+// Phase 44: unlock audio on the FIRST user gesture (browser autoplay policy).
+// An AudioContext created outside a gesture starts SUSPENDED and stays silent
+// until resume() is called from inside a gesture — so the first click/keypress
+// anywhere on the page creates/resumes both the SFX and music contexts. The
+// per-frame Music.update() keeps retrying resume() as a second line of defense.
+function unlockAudio() {
+  SFX.ensure();
+  Music.ensure();
+}
+window.addEventListener('pointerdown', unlockAudio);
+window.addEventListener('keydown', unlockAudio);
+
 function frame(now) {
   let dt = (now - last) / 1000;
   last = now;
