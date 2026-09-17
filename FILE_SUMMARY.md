@@ -59,7 +59,7 @@ Path construction and geometry: the path is a **centripetal Catmull-Rom spline**
 ## Levels
 
 ### `js/levels.js`
-Hard-coded definitions of the six built-in levels (Snake, Serpentine, Comb, Zigzag, The Gauntlet, Crossroads) as grid-coordinate waypoint lists, each with a `difficulty` key (L1–L2 easy, L3–L4 normal, L5–L6 hard) that drives procedural wave scaling exactly like the generator's. Level 4 was renamed "Switchback" → "Zigzag" in Phase 36 to free the name for the new generator switchback template.
+Hard-coded definitions of the six built-in levels (Snake, Serpentine, Comb, Zigzag, The Gauntlet, Crossroads) as grid-coordinate waypoint lists, each with a `difficulty` key (L1–L2 easy, L3–L4 normal, L5–L6 hard) that drives procedural wave scaling exactly like the generator's. Level 4 was renamed "Switchback" → "Zigzag" in Phase 36 to free the name for the new generator switchback template. Phase 45: levels 2 & 5 bottom lanes moved row 15 → 14 — on the 16-row grid (Phase 42) a row-15 lane's spline corners bow ~45px past the lane center and off the 800px canvas (only the path's top edge was visible); row 14 keeps the sampled spline at y ≤ ~769.
 - Constant: `LEVELS`
 - Functions: `levelWaypoints(i)`
 

@@ -4,8 +4,34 @@
 
 ### 📌 Handoff Summary
 * **Completed Milestones:** Phases 1–38 (see archives). Phase 36: Switchback + Spiral generator templates, built-in "Switchback" renamed to "Zigzag". Phase 37: localStorage-only levels — the build step is gone; Create saves to the store. Phase 38: Stored Levels page with per-level Export + Delete. Phase 41: single-file desktop build (compile.py/compile.bat, pywebview/WebView2); native file dialogs for export/import in the compiled app.
-* **Current Focus:** Phase 44 — difficulty selector for built-in levels + background music (DONE). No active phase; awaiting the next user request.
+* **Current Focus:** Phase 45 — L2/L5 bottom lanes back on-canvas (DONE). No active phase; awaiting the next user request.
 ---
+
+## Phase 45: Levels 2 & 5 bottom lanes off-canvas — DONE
+
+User report: after the Phase-42 shrink to a 16-row grid (canvas 800px),
+levels 2 (Serpentine) and 5 (The Gauntlet) "go too far down" — at their
+lowest point only the top edge of the path is visible.
+
+**Root cause:** both levels run their bottom lanes on row 15 (the last row,
+center y=775). The Catmull-Rom corners there bow ~45px past the lane center,
+so the sampled spline reaches y≈820 — 20px below the 800px canvas. The
+validator's "spline leaves the grid" check (`p.y >= H`) actually catches this
+and reports `valid=false` for both — but built-in levels are seeded into the
+registry WITHOUT validation (only stored/imported defs go through
+`validateLevelDef`), so the broken bounds shipped silently.
+
+**Fix:** move both bottom lanes from row 15 → row 14 (js/levels.js, one line
+each). Sampled y now maxes at ≈769, inside the canvas with ~30px margin;
+both pass `validateLevelDef` cleanly. Path lengths shift by ~2 cells each —
+no other behavior touched.
+
+- [x] js/levels.js: L2 Serpentine + L5 Gauntlet bottom lanes 15 → 14
+- [x] Verified all six built-ins now pass the real validator (they should have
+      always — future: consider validating built-ins at boot)
+- [x] Smoke tests green (smoke_levels, smoke_boot, smoke_difficulty,
+      smoke_enemy_unlock)
+- [x] FILE_SUMMARY.md updated
 
 ## Phase 44: Difficulty selector for built-ins + background music — DONE
 
