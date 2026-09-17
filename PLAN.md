@@ -78,7 +78,10 @@ chiptune loop (`js/music.js`) with a calm 108 BPM normal mode and a driving
 132 BPM boss mode (auto-switches while a Colossus is on screen), started and
 stopped by the 🎵 Start/Stop HUD button (not persisted — the page loads silent,
 and the click is the user gesture the browser requires, so there are no
-autoplay-policy warnings) independent of the 🔊 global mute.
+autoplay-policy warnings) independent of the 🔊 global mute. Volume: `MUSIC_LEVEL`
+master gain (1.0) + per-note peaks — first thing to tune if too quiet/too loud
+(first report "barely hear it" fixed by doubling the master gain 0.5 → 1.0 and
+raising bass/arp/kick/hat peaks).
 
 ## Phase 43: Mortar targets anywhere + bigger blast — DONE
 

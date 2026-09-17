@@ -18,6 +18,10 @@
 //   never creates or resumes the context on its own (that runs from
 //   requestAnimationFrame, which is not a gesture and would be blocked).
 
+// Master music level (0..1). The per-note peaks below are tuned relative to
+// this — if the user says "too quiet" or "too loud", adjust THIS number first.
+const MUSIC_LEVEL = 1.0;
+
 // --- patterns ---------------------------------------------------------------
 // Each pattern: steps = total 16th-note steps in the loop, stepDur (seconds),
 // and per-step event arrays. bass[i] = {freq,type,dur,peak} | null; arp[i] =
@@ -37,9 +41,9 @@ const PATTERNS = (function () {
     for (let s = 0; s < 16; s++) {
       const i = b * 16 + s;
       normal.bass[i] = null;
-      if (s === 0) normal.bass[i] = { freq: bar.root, type: 'triangle', dur: 0.42, peak: 0.15 };
-      else if (s === 8) normal.bass[i] = { freq: bar.root, type: 'triangle', dur: 0.30, peak: 0.12 };
-      else if (s === 12) normal.bass[i] = { freq: bar.root * 1.5, type: 'triangle', dur: 0.30, peak: 0.10 };
+      if (s === 0) normal.bass[i] = { freq: bar.root, type: 'triangle', dur: 0.42, peak: 0.30 };
+      else if (s === 8) normal.bass[i] = { freq: bar.root, type: 'triangle', dur: 0.30, peak: 0.24 };
+      else if (s === 12) normal.bass[i] = { freq: bar.root * 1.5, type: 'triangle', dur: 0.30, peak: 0.20 };
       normal.arp[i] = bar.arp[arpIdx[s]];
       normal.kick[i] = false;
       normal.hat[i] = false;
@@ -53,7 +57,7 @@ const PATTERNS = (function () {
   barsB.forEach((root, b) => {
     for (let s = 0; s < 16; s++) {
       const i = b * 16 + s;
-      boss.bass[i] = (s % 2 === 0) ? { freq: root, type: 'square', dur: 0.10, peak: 0.11 } : null;
+      boss.bass[i] = (s % 2 === 0) ? { freq: root, type: 'square', dur: 0.10, peak: 0.18 } : null;
       boss.arp[i] = null;
       boss.kick[i] = s % 4 === 0;
       boss.hat[i] = s % 4 === 2;
@@ -83,7 +87,7 @@ const Music = {
     if (!AC) return false; // headless / unsupported: stay silent
     this.ctx = new AC();
     this.gain = this.ctx.createGain();
-    this.gain.gain.value = 0.5; // music sits under the SFX master
+    this.gain.gain.value = MUSIC_LEVEL;
     this.gain.connect(this.ctx.destination);
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     this.playing = true;
@@ -114,7 +118,7 @@ const Music = {
     const ctx = this.ctx;
     if (ctx.state !== 'running') return;
     // The 🔊 Sound button mutes everything: duck the music gain while muted.
-    if (this.gain) this.gain.gain.value = SFX.muted ? 0 : 0.5;
+    if (this.gain) this.gain.gain.value = SFX.muted ? 0 : MUSIC_LEVEL;
     const mode = boss ? 'boss' : 'normal';
     if (mode !== this.mode) {
       // Mode switch: restart the loop cleanly from step 0.
@@ -135,8 +139,8 @@ const Music = {
     const b = pat.bass[i];
     if (b) tone(this.ctx, this.gain, when, { type: b.type, freq: b.freq, dur: b.dur, peak: b.peak });
     const a = pat.arp[i];
-    if (a != null) tone(this.ctx, this.gain, when, { type: 'triangle', freq: a, dur: pat.stepDur * 0.95, peak: 0.045 });
-    if (pat.kick[i]) tone(this.ctx, this.gain, when, { type: 'sine', freq: 110, freqEnd: 42, dur: 0.12, peak: 0.22 });
-    if (pat.hat[i]) noise(this.ctx, this.gain, when, { dur: 0.05, peak: 0.07, type: 'highpass', freq: 6000 });
+    if (a != null) tone(this.ctx, this.gain, when, { type: 'triangle', freq: a, dur: pat.stepDur * 0.95, peak: 0.09 });
+    if (pat.kick[i]) tone(this.ctx, this.gain, when, { type: 'sine', freq: 110, freqEnd: 42, dur: 0.12, peak: 0.30 });
+    if (pat.hat[i]) noise(this.ctx, this.gain, when, { dur: 0.05, peak: 0.10, type: 'highpass', freq: 6000 });
   },
 };
