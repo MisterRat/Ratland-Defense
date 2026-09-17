@@ -11,21 +11,12 @@
 //   the REAL dt (unaffected by pause/speed), and schedules 16th-note steps up
 //   to LOOKAHEAD seconds ahead of ctx.currentTime.
 // - Muting: the 🔊 Sound button mutes everything — update() forces the music
-//   gain to 0 while SFX.muted is true. The 🎵 button is a separate on/off
-//   switch (persisted in localStorage like mute/speed).
-
-const MUSIC_KEY = 'towerDefenseMusic.v1';
-
-function loadMusicEnabled() {
-  try {
-    const v = localStorage.getItem(MUSIC_KEY);
-    return v === null ? true : v === '1'; // default ON; only an explicit '0' disables
-  } catch (err) { return true; }
-}
-
-function saveMusicEnabled(on) {
-  try { localStorage.setItem(MUSIC_KEY, on ? '1' : '0'); } catch (err) { /* no storage */ }
-}
+//   gain to 0 while SFX.muted is true.
+// - Start/stop: music is OFF by default and is NOT persisted. The 🎵 button
+//   ("🎵 Start" / "🎵 Stop") is the ONLY place the AudioContext is created —
+//   and it's a click, i.e. a user gesture, so the browser allows it. update()
+//   never creates or resumes the context on its own (that runs from
+//   requestAnimationFrame, which is not a gesture and would be blocked).
 
 // --- patterns ---------------------------------------------------------------
 // Each pattern: steps = total 16th-note steps in the loop, stepDur (seconds),
@@ -75,63 +66,53 @@ const PATTERNS = (function () {
 // --- engine -----------------------------------------------------------------
 
 const Music = {
-  enabled: loadMusicEnabled(), // the 🎵 on/off switch (persisted)
-  ctx: null,                   // AudioContext, created on demand (shared lazily)
+  playing: false,              // true between Start and Stop (NOT persisted)
+  ctx: null,                   // AudioContext — created ONLY by start() (a click)
   gain: null,                  // music master gain (kept below SFX level)
   mode: null,                  // 'normal' | 'boss' | null (stopped)
   step: 0,                     // absolute step counter (loops via % steps)
   nextTime: 0,                 // ctx time of the next unscheduled step
   LOOKAHEAD: 0.35,             // seconds of scheduling ahead
-  _resumeTries: 0,             // bounded resume retries while the ctx is suspended
 
-  // Create the context + music gain. Called from a user gesture (any HUD
-  // button click) so the browser allows audio; safe to call repeatedly.
-  ensure() {
-    if (this.ctx) return this.ctx;
+  // The 🎵 Start button — MUST be called from the click handler (a user
+  // gesture), which is why it's the only place a context is created.
+  start() {
+    if (this.playing) return true;
     const w = typeof window !== 'undefined' ? window : null;
     const AC = w && (w.AudioContext || w.webkitAudioContext);
-    if (!AC) return null; // headless / unsupported: stay silent
+    if (!AC) return false; // headless / unsupported: stay silent
     this.ctx = new AC();
     this.gain = this.ctx.createGain();
     this.gain.gain.value = 0.5; // music sits under the SFX master
     this.gain.connect(this.ctx.destination);
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
-    return this.ctx;
-  },
-
-  // The 🎵 on/off switch; returns the new enabled state. Persisted.
-  toggle() {
-    this.enabled = !this.enabled;
-    saveMusicEnabled(this.enabled);
-    if (!this.enabled) this.stop();
-    return this.enabled;
-  },
-
-  // Stop scheduling (mode reset). Called when toggled off or on a mode switch.
-  stop() {
+    this.playing = true;
     this.mode = null;
     this.step = 0;
+    return true;
+  },
+
+  // The 🎵 Stop button: stops scheduling and closes the context (releases its
+  // audio thread). A later Start creates a fresh one.
+  stop() {
+    this.playing = false;
+    this.mode = null;
+    this.step = 0;
+    if (this.ctx) {
+      const c = this.ctx;
+      this.ctx = null;
+      this.gain = null;
+      c.close().catch(() => {});
+    }
   },
 
   // Called every frame from main.js with the REAL dt and whether a boss is on
-  // screen. No-op when disabled, muted (gain only), or headless.
+  // screen. No-op when not playing, headless, or while the context is
+  // suspended (it can only be resumed by a gesture — Start does that).
   update(dt, boss) {
-    if (!this.enabled) return;
-    const ctx = this.ensure();
-    if (!ctx) return;
-    // Autoplay policy: the context is created on the first HUD gesture but
-    // some browsers still leave it SUSPENDED (especially when the page was
-    // opened via file:// or an embedded webview). Retry resume() a bounded
-    // number of times — each call happens inside a frame that follows user
-    // interaction, so once the browser allows audio the loop starts.
-    if (ctx.state === 'suspended') {
-      if (this._resumeTries < 10) {
-        this._resumeTries++;
-        ctx.resume().catch(() => {});
-      }
-      return;
-    }
-    this._resumeTries = 0;
+    if (!this.playing || !this.ctx) return;
+    const ctx = this.ctx;
+    if (ctx.state !== 'running') return;
     // The 🔊 Sound button mutes everything: duck the music gain while muted.
     if (this.gain) this.gain.gain.value = SFX.muted ? 0 : 0.5;
     const mode = boss ? 'boss' : 'normal';

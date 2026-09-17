@@ -185,15 +185,13 @@ class UI {
       ? effectiveDifficulty(this.game.levelIndex) : 'normal';
   }
 
-  // Phase 44: music on/off switch — label reflects the persisted state.
+  // Phase 44: music start/stop button — the click is the user gesture that
+  // lets the browser create the AudioContext. Label reflects current state.
   bindMusicButton() {
     const btn = this.el.musicBtn;
     if (!btn) return;
-    btn.textContent = Music.enabled ? '🎵 Music' : '🎵 Music: off';
-    btn.addEventListener('click', () => {
-      SFX.ensure(); // user gesture: safe to create/resume the context now
-      this.handlers.onMusic();
-    });
+    btn.textContent = Music.playing ? '🎵 Stop' : '🎵 Start';
+    btn.addEventListener('click', () => this.handlers.onMusic());
   }
 
   bindButtons() {

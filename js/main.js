@@ -134,11 +134,19 @@ const handlers = {
     ui.refreshLevelSelect(); // option labels show the effective difficulty
     game.setMessage(`Difficulty: ${LG_DIFFICULTY[key].label} — lives and enemy HP rescaled.`);
   },
-  // Phase 44: background music on/off switch (persisted like mute).
+  // Phase 44: background music start/stop. The click IS the user gesture the
+  // browser requires to create the AudioContext — no auto-start, no console
+  // warnings. Not persisted: every page load starts silent.
   onMusic() {
-    const on = Music.toggle();
-    ui.el.musicBtn.textContent = on ? '🎵 Music' : '🎵 Music: off';
-    game.setMessage(on ? 'Music on.' : 'Music off.');
+    if (Music.playing) {
+      Music.stop();
+      ui.el.musicBtn.textContent = '🎵 Start';
+      game.setMessage('Music stopped.');
+    } else {
+      Music.start();
+      ui.el.musicBtn.textContent = '🎵 Stop';
+      game.setMessage('Music started.');
+    }
   },
   onSpeed() {
     speed = (speed === 1) ? 2 : (speed === 2 ? 3 : 1);
@@ -210,17 +218,9 @@ setPaused(true);
 // Phase 34: the button label must reflect the RESTORED speed (the HTML hardcodes "1x").
 ui.el.speedBtn.textContent = `Speed: ${speed}x`;
 
-// Phase 44: unlock audio on the FIRST user gesture (browser autoplay policy).
-// An AudioContext created outside a gesture starts SUSPENDED and stays silent
-// until resume() is called from inside a gesture — so the first click/keypress
-// anywhere on the page creates/resumes both the SFX and music contexts. The
-// per-frame Music.update() keeps retrying resume() as a second line of defense.
-function unlockAudio() {
-  SFX.ensure();
-  Music.ensure();
-}
-window.addEventListener('pointerdown', unlockAudio);
-window.addEventListener('keydown', unlockAudio);
+// Phase 44: no global audio unlock — SFX creates its context lazily inside
+// click handlers (gestures), and the music context is created ONLY by the
+// 🎵 Start button. The page loads silent with zero autoplay-policy warnings.
 
 function frame(now) {
   let dt = (now - last) / 1000;

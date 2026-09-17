@@ -39,19 +39,23 @@ today only the level's own `difficulty` key is consulted.
 A looping chiptune generated with Web Audio (same lazy-AudioContext pattern as
 SFX — no audio files, file://-safe). New `js/music.js`:
 
-- **Engine:** `Music` object mirroring SFX — `ensure()` on user gesture,
-  scheduler driven by the game loop (`Music.update(dt)` called from
-  `frame()`), a lookahead scheduler (0.3 s) that schedules 16th-note steps
-  ahead of `ctx.currentTime`, master gain through the same mute state as SFX
-  (one 🔊 button mutes everything).
+- **Engine:** `Music` object with a scheduler driven by the game loop
+  (`Music.update(dt, boss)` called from `frame()`), a lookahead scheduler
+  (0.35 s) that schedules 16th-note steps ahead of `ctx.currentTime`, master
+  gain through the same mute state as SFX (one 🔊 button mutes everything).
 - **Two modes:** `normal` (calm minor-pentatonic bass + arpeggio, 108 BPM)
   and `boss` (faster 132 BPM, driving bass + off-beat percussion) — the game
   switches when a Colossus is on screen (checked each frame in main.js).
-- **Toggle:** "🎵 Music" HUD button (on by default, persisted like mute);
-  headless-safe no-op.
-- **Tests:** `tests/smoke_music.mjs` — stub AudioContext: scheduling produces
-  oscillator/noise nodes per mode, boss mode changes tempo, toggle persists +
-  suppresses, headless stays silent, mode switch mid-loop is clean.
+- **Start/Stop (autoplay policy):** music is OFF at boot and NOT persisted.
+  The "🎵 Start"/"🎵 Stop" HUD button click is the ONLY place an AudioContext
+  is created — it's a real user gesture, so the browser allows it with zero
+  console warnings. `update()` never creates or resumes contexts itself (it
+  runs from requestAnimationFrame, which is not a gesture). `stop()` closes
+  the context; a later Start makes a fresh one.
+- **Tests:** `tests/smoke_music.mjs` — stub AudioContext: fresh boot stays
+  silent (frames never create a context), start() creates one + schedules per
+  mode, boss mode changes tempo, stop() closes + silences, restart makes a
+  fresh context, mute ducks the gain, headless stays silent.
 
 ### Implementation steps
 - [x] PLAN.md Phase 44 section written
@@ -71,11 +75,10 @@ dropdown — the selection persists per level in localStorage and rescales lives
 enemy HP, spawn pacing and (procedural) wave size on reload; the level dropdown's
 labels show each level's effective difficulty. Background music: a Web-Audio
 chiptune loop (`js/music.js`) with a calm 108 BPM normal mode and a driving
-132 BPM boss mode (auto-switches while a Colossus is on screen), its own 🎵
-on/off switch (persisted, default on) independent of the 🔊 global mute. Audio
-unlock: the first pointerdown/keydown anywhere creates+resumes both contexts
-(autoplay policy), plus a bounded resume retry inside Music.update as a safety
-net for suspended contexts (file:// / webview).
+132 BPM boss mode (auto-switches while a Colossus is on screen), started and
+stopped by the 🎵 Start/Stop HUD button (not persisted — the page loads silent,
+and the click is the user gesture the browser requires, so there are no
+autoplay-policy warnings) independent of the 🔊 global mute.
 
 ## Phase 43: Mortar targets anywhere + bigger blast — DONE
 
