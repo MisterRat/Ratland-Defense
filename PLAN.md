@@ -4,8 +4,91 @@
 
 ### 📌 Handoff Summary
 * **Completed Milestones:** Phases 1–38 (see archives). Phase 36: Switchback + Spiral generator templates, built-in "Switchback" renamed to "Zigzag". Phase 37: localStorage-only levels — the build step is gone; Create saves to the store. Phase 38: Stored Levels page with per-level Export + Delete. Phase 41: single-file desktop build (compile.py/compile.bat, pywebview/WebView2); native file dialogs for export/import in the compiled app.
-* **Current Focus:** Phase 45 — L2/L5 bottom lanes back on-canvas (DONE). No active phase; awaiting the next user request.
+* **Current Focus:** Phase 46 — richer background music (chords, melody, variation) DONE. No active phase; awaiting the next user request.
 ---
+
+## Phase 46: Richer background music — chords, melody, variation — DONE
+
+User request: "make the music richer; chords, more melodic content and variation"
+(+ "feel free to implement improvements you may have to the music").
+
+### Problems with the Phase-44 music
+1. **No chords** — every bar is a 4-note arpeggio + single-note bass; nothing
+   ever sounds harmonic.
+2. **Zero melodic content** — the arp index pattern is identical in all four
+   bars; there is no phrase, no motif, no development.
+3. **No variation** — a 64-step loop repeats verbatim forever; no section
+   change, no fills, no cadence punctuation.
+4. Boss mode has no melodic voice at all (bass + drums only).
+
+### Design
+Two new/changed files (engine stays <500 lines; patterns move to their own
+module per the modularity rule):
+
+**`js/music_patterns.js`** (new, ~230 lines) — pure data + builders, no
+AudioContext needed (testable headless):
+- `NOTE(n)` — MIDI note number → frequency (440·2^((n−69)/12)).
+- `CHORDS` — triads as MIDI arrays: Am [57,60,64], F [53,57,60], C [48,52,55]
+  (+60), G [55,59,62].
+- `NORMAL_BARS` — 8-bar loop (128 sixteenth steps) with per-bar data:
+  `{ chord, bassRoot, bassPattern, arpPattern, melody, fill }`.
+  - **Chord progression (two 4-bar phrases):** A: Am–F–C–G (I–VI–III–VII),
+    B: Am–G–F–E (i–VII–VI–V — the E major gives a dominant cadence into the
+    loop restart). Bass roots: A2 F2 C3 G2 / A2 G2 F2 E2.
+  - **Bass variation:** per-bar pattern over 8 eighths — root-only, octave
+    bounce (×2), fifth answer (×1.5), and a pickup to the next bar's root
+    (last eighth) on the final bar of each phrase.
+  - **Arp/chord variation:** per-bar 8-eighth patterns from a small set
+    (`arpUp` 0,1,2,3 / `arpDown` 3,2,1,0 / `triad` 0,1,2,0,1,2,0,1 /
+    `pulse` 0,1,0,1,2,1,2,1), each bar picks a different one.
+  - **Melody (lead voice):** per-bar 8-eighth phrases in the A4–E5 range —
+    motif on bars 1–2, sequence up a step on bars 3–4, cadence answer on
+    5–6, high-point climax on 7, resolution + pickup on 8; rests (null)
+    shape the phrase. `fill` marks bar 8: the arp drops out so the melody
+    closes the loop cleanly.
+- `BOSS_BARS` — 4-bar loop (64 steps), Am–Am–F–E: driving eighth square bass
+  with octave accents, off-beat power-chord stabs (root+5th) on bars 2 & 4,
+  a simple call-and-response melody over the two F/E bars, kick on every beat
+  + a bar-3 fill, hats on off-eighths + an extra 16th into bar 4.
+
+**`js/music.js`** (rewritten engine, ~170 lines) — same public API
+(`Music.start/stop/update`, `MUSIC_LEVEL`, `PATTERNS`) so main.js and the
+smoke tests keep working:
+- **Voices:** `pad` (two detuned triangles per chord tone, slow attack, one
+  chord per bar), `bass`, `arp` (triangle), `lead` (sawtooth + lowpass —
+  brighter, melodic), `snare` (bandpass noise) and `riser` (rising noise
+  sweep into the cadence bar) in boss mode. Kick stays a pitch-drop sine.
+- **Scheduler:** unchanged lookahead design; per-pattern `stepDur`/`steps`;
+  mode switch still restarts from step 0. Normal = 108 BPM × 128 steps,
+  boss = 132 BPM × 64 steps.
+- Mute ducking + lazy-context rules unchanged.
+
+**Tests:** `tests/smoke_music.mjs` — keep sections A–G (they still hold:
+normal has no kick/hat noise, boss does; boss is faster), extend the stub
+AudioContext to record oscillator freq/type and gain values, and add:
+H normal-mode chords (a pad step schedules 3 chord tones + a bass root),
+I melody content (lead oscillators present with distinct frequencies across
+the loop; bar 8 fill = no arp events), J variation (not all 8 bars identical —
+bass/arp/melody differ between bars), K boss stabs + snare + melody,
+L pattern sanity (128/64 steps, every step fully populated).
+`tests/smoke_difficulty_select.mjs` stub gains the new node factories
+(`createStereoPanner`, `createDynamicsCompressor`) so the full bundle keeps
+booting; its music section is untouched.
+
+### Implementation steps
+- [x] PLAN.md Phase 46 written
+- [x] js/music_patterns.js: notes/chords/8-bar normal + 4-bar boss builders
+- [x] js/music.js: pad/lead/snare/riser voices + per-voice scheduling
+- [x] index.html: load music_patterns.js before music.js
+- [x] tests/smoke_music.mjs: extended stub + sections H–L
+- [x] tests/smoke_difficulty_select.mjs: stub node-factory additions
+- [x] Full regression from tests/ — all 37 pass
+- [x] FILE_SUMMARY.md updated
+
+Note (post-implementation): normal mode keeps NO percussion (the calm voice is
+pad + bass + arp + lead; the drums belong to boss mode — the contrast is the
+point), so the original "soft kick/hat pulse" in the design was dropped and
+section B's "no percussion in normal mode" check still holds.
 
 ## Phase 45: Levels 2 & 5 bottom lanes off-canvas — DONE
 
