@@ -38,6 +38,13 @@ class Game {
     return (diffKey && LG_DIFFICULTY[diffKey].lives) || START_LIVES;
   }
 
+  // The level's EFFECTIVE difficulty key, defensive for legacy smoke bundles
+  // that don't load config.js's resolver (falls back to 'normal').
+  effectiveDiffKey() {
+    return (typeof effectiveDifficulty === 'function')
+      ? effectiveDifficulty(this.levelIndex) : 'normal';
+  }
+
   // Enter a level with an explicit money base: fresh start, carry-over after a
   // win (target default + unspent), or a retry (initial start + stacked bonus).
   enterLevel(base) {
@@ -60,6 +67,10 @@ class Game {
     this.shots = [];          // in-flight railgun slugs (PiercingShot)
     this.effects = [];        // transient visuals (chain lightning segments, etc.)
     this.corpses = [];        // Phase 34: fading death discs (separate from effects)
+    // Water ponds: deterministic per (level, effective difficulty) — rebuilt on
+    // every level entry/retry/difficulty change so the layout always matches.
+    this.ponds = (typeof buildPonds === 'function')
+      ? buildPonds(this.levelIndex, this.effectiveDiffKey(), this.path) : null;
     const lvl = this.levelDef(); // per-level wave count + explicit waves
     this.waves = new WaveManager(this.levelIndex, lvl ? lvl.totalWaves : TOTAL_WAVES, lvl ? lvl.waves : null);
     this.status = 'playing'; // playing | won | lost
@@ -109,6 +120,8 @@ class Game {
   canPlace(cx, cy) {
     if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return false;
     if (this.towers.has(key(cx, cy))) return false;
+    // No towers on water (terrain.js; absent in legacy smoke bundles).
+    if (typeof isWaterCell === 'function' && isWaterCell(this.ponds, cx, cy)) return false;
     return !isPathCell(this.path, cx, cy);
   }
 

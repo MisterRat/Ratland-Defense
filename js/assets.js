@@ -9,12 +9,19 @@ const TowerAssets = {
     for (const type of Object.keys(TOWER_TYPES)) {
       const def = TOWER_TYPES[type];
       if (!def.img) continue;
-      const img = new Image();
-      img.onload = () => { this.loaded[type] = img.naturalWidth > 0; };
-      img.onerror = () => { this.loaded[type] = false; };
-      img.src = def.img;
-      this.images[type] = img;
+      this.load(type, def.img);
     }
+    // Terrain sprite: the 4×4-cell pond (200×200 px). Loaded separately from
+    // the tower roster — terrain.js defines POND_SIZE, not TOWER_TYPES.
+    if (typeof POND_SIZE !== 'undefined') this.load('pond', 'assets/pond.png');
+  },
+
+  load(type, src) {
+    const img = new Image();
+    img.onload = () => { this.loaded[type] = img.naturalWidth > 0; };
+    img.onerror = () => { this.loaded[type] = false; };
+    img.src = src;
+    this.images[type] = img;
   },
 
   // Image element ready to draw, or null (caller falls back to procedural art).

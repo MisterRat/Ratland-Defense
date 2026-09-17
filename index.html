@@ -100,6 +100,9 @@
   <div id="wavePreview"></div>
   <!-- Classic scripts in dependency order (works from file:// without a server) -->
   <script src="js/config.js"></script>
+  <!-- Terrain (pond layout) before assets.js: its auto-init loads the pond
+       sprite only when POND_SIZE is defined. -->
+  <script src="js/terrain.js"></script>
   <script src="js/assets.js"></script>
   <script src="js/levels.js"></script>
   <script src="js/level_validate.js"></script>
@@ -126,6 +129,8 @@
        sfx_sounds.js (reuses its tone/noise helpers). -->
   <!-- Phase 46: pattern data (chords/melody/variation) before the engine. -->
   <script src="js/music_patterns.js"></script>
+  <!-- Phase 48: the six normal-mode songs (reuses the patterns' builders). -->
+  <script src="js/music_songs.js"></script>
   <script src="js/music.js"></script>
   <script src="js/game.js"></script>
   <script src="js/render.js"></script>

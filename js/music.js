@@ -27,7 +27,7 @@
 
 // Master music level (0..1). The per-note peaks below are tuned relative to
 // this — if the user says "too quiet" or "too loud", adjust THIS number first.
-const MUSIC_LEVEL = 1.0;
+const MUSIC_LEVEL = 0.3;
 
 // --- voice helpers ----------------------------------------------------------
 // (Local to this file: the SFX `tone`/`noise` helpers use a fixed peak→0
@@ -104,6 +104,8 @@ const Music = {
   ctx: null,                   // AudioContext — created ONLY by start() (a click)
   gain: null,                  // music master gain
   mode: null,                  // 'normal' | 'boss' | null (stopped)
+  songIndex: -1,               // Phase 48: chosen normal-mode song (-1 until Start)
+  lastSong: -1,                // Phase 48: previous pick — never played twice in a row
   step: 0,                     // absolute step counter (loops via % steps)
   nextTime: 0,                 // ctx time of the next unscheduled step
   LOOKAHEAD: 0.35,             // seconds of scheduling ahead
@@ -123,7 +125,20 @@ const Music = {
     this.playing = true;
     this.mode = null;
     this.step = 0;
+    // Phase 48: pick one of the six normal-mode songs at random, never the
+    // same song twice in a row (avoids the "it's playing the same song" feel).
+    this.songIndex = this.pickSong();
     return true;
+  },
+
+  // Phase 48: uniform random pick from the six songs, excluding the previous
+  // pick (5 choices instead of 6 — still uniform over the allowed set).
+  pickSong() {
+    const n = NORMAL_SONGS.length;
+    let i = Math.floor(Math.random() * n);
+    if (i === this.lastSong) i = (i + 1 + Math.floor(Math.random() * (n - 1))) % n;
+    this.lastSong = i;
+    return i;
   },
 
   // The 🎵 Stop button: stops scheduling and closes the context (releases its
@@ -156,13 +171,15 @@ const Music = {
       this.step = 0;
       this.nextTime = ctx.currentTime + 0.15;
     }
-    const pat = PATTERNS[mode];
+    // Phase 48: normal mode plays the randomly chosen song; boss keeps its own.
+    const song = NORMAL_SONGS[this.songIndex];
+    const pat = mode === 'boss' ? PATTERNS.boss : song.pattern;
     while (this.nextTime < ctx.currentTime + this.LOOKAHEAD) {
       const i = this.step % pat.steps;
       this.scheduleStep(pat, i, this.nextTime);
       // Sustained voices sit on bar boundaries.
       if (mode === 'normal' && i % 16 === 0) {
-        const bar = NORMAL_BAR_DATA[(i / 16) % NORMAL_BAR_DATA.length];
+        const bar = song.barData[(i / 16) % song.barData.length];
         padChord(ctx, this.gain, this.nextTime, bar.tones, pat.stepDur * 16);
       }
       if (mode === 'boss' && i === 32) {

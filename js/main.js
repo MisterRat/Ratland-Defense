@@ -143,9 +143,12 @@ const handlers = {
       ui.el.musicBtn.textContent = '🎵 Start';
       game.setMessage('Music stopped.');
     } else {
-      Music.start();
-      ui.el.musicBtn.textContent = '🎵 Stop';
-      game.setMessage('Music started.');
+      const ok = Music.start();
+      ui.el.musicBtn.textContent = ok ? '🎵 Stop' : '🎵 Start';
+      // Phase 48: show which of the six songs was picked at random.
+      game.setMessage(ok
+        ? `Music started: ${NORMAL_SONGS[Music.songIndex].name}.`
+        : 'Music not supported in this browser.');
     }
   },
   onSpeed() {

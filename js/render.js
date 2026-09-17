@@ -10,6 +10,7 @@ class Renderer {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.drawGrid(ctx);
+    this.drawPonds(ctx, game.ponds);
     this.drawPath(ctx, game.path);
     for (const t of game.towers.values()) {
       this.drawTower(ctx, t, view.selectedTower === t);
@@ -120,14 +121,48 @@ class Renderer {
     return cellCenter(c.cx, c.cy, GRID.cell);
   }
 
+  // Grass: two alternating light-green shades.
   drawGrid(ctx) {
     const { cols, rows, cell } = GRID;
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
-        ctx.fillStyle = (cx + cy) % 2 === 0 ? '#232b36' : '#1f2731';
+        ctx.fillStyle = (cx + cy) % 2 === 0 ? '#9ed08a' : '#92c67e';
         ctx.fillRect(cx * cell, cy * cell, cell, cell);
       }
     }
+  }
+
+  // Water ponds: one 200×200 px sprite per 4×4-cell block (assets/pond.png),
+  // with a procedural blue rounded-rect fallback when the sprite is missing.
+  drawPonds(ctx, ponds) {
+    if (!ponds || !ponds.rects || !ponds.rects.length) return;
+    const cell = GRID.cell;
+    const size = POND_SIZE * cell; // 200 px — matches the sprite exactly
+    const sprite = (typeof TowerAssets !== 'undefined') ? TowerAssets.get('pond') : null;
+    for (const r of ponds.rects) {
+      const x = r.cx * cell, y = r.cy * cell;
+      if (sprite) {
+        ctx.drawImage(sprite, x, y, size, size);
+      } else {
+        this.roundRectPath(ctx, x, y, size, size, 18);
+        ctx.fillStyle = '#4aa3e0';
+        ctx.fill();
+        ctx.strokeStyle = '#2f7fb8';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Rounded-rect subpath (manual arcs — no ctx.roundRect dependency).
+  roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   drawPath(ctx, path) {
@@ -330,7 +365,7 @@ class Renderer {
     const ok = game.canPlace(cx, cy);
     const def = TOWER_TYPES[view.placingType];
     const x = (cx + 0.5) * cell, y = (cy + 0.5) * cell;
-    ctx.fillStyle = ok ? 'rgba(103,212,111,0.25)' : 'rgba(229,83,61,0.3)';
+    ctx.fillStyle = ok ? 'rgba(25,130,45,0.5)' : 'rgba(229,83,61,0.3)';
     ctx.fillRect(cx * cell, cy * cell, cell, cell);
     if (ok) this.drawRange(ctx, x, y, def.range);
   }

@@ -1,8 +1,8 @@
 """Ratland Defense — single-file desktop launcher.
 
-Serves the game (index.html + js/ + assets/) over a localhost HTTP server on an
-ephemeral port, then opens it in a native window via pywebview. On Windows the
-pywebview default backend is EdgeChromium (WebView2) — an embedded Chromium.
+Serves the game (index.html + js/ + assets/) over a localhost HTTP server on a
+fixed loopback port, then opens it in a native window via pywebview. On Windows
+the pywebview default backend is EdgeChromium (WebView2) — an embedded Chromium.
 
 The ``Api`` object is exposed to the page as ``window.pywebview.api`` so the
 Stored Levels page can use NATIVE file dialogs (Save / Open) instead of the
@@ -21,6 +21,7 @@ import socketserver
 import webview
 
 HOST = '127.0.0.1'  # loopback only — never expose the game server on the LAN
+PORT = 18429        # fixed port ensures localStorage persists across launches
 PORT_WAIT_TIMEOUT = 5  # seconds to wait for the server thread to bind
 
 
@@ -97,12 +98,17 @@ class Api:
 
 
 def _start_server(base_dir, port_container):
-    """Serve base_dir on an ephemeral loopback port; publish the bound port."""
+    """Serve base_dir on a fixed loopback port using a multi-threaded server."""
     class Handler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=base_dir, **kwargs)
 
-    with socketserver.TCPServer((HOST, 0), Handler) as httpd:
+    # ThreadingMixIn allows handling concurrent script requests from WebView2
+    class ThreadedHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+        daemon_threads = True
+        allow_reuse_address = True
+
+    with ThreadedHTTPServer((HOST, PORT), Handler) as httpd:
         port_container['port'] = httpd.server_address[1]
         port_container['event'].set()
         httpd.serve_forever()
@@ -131,7 +137,12 @@ def main():
     )
     api.set_window(window)
 
-    webview.start()
+    # Persist storage state under %APPDATA%\RatlandDefense across executable runs
+    storage_dir = os.path.join(
+        os.getenv('APPDATA', os.path.expanduser('~')), 'RatlandDefense'
+    )
+
+    webview.start(private_mode=False, storage_path=storage_dir, debug=False)
 
 
 if __name__ == '__main__':

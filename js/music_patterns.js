@@ -23,13 +23,20 @@
 // MIDI note number → frequency (A4 = 69 = 440 Hz).
 function NOTE(n) { return 440 * Math.pow(2, (n - 69) / 12); }
 
-// Triads as MIDI arrays (root position, around the A3–E5 area).
+// Triads as MIDI arrays (root position, around the A3–E5 area). Phase 48 adds
+// Em/Bb/A/B/Dm/D for the five new normal-mode songs (js/music_songs.js).
 const CHORDS = {
   Am: [57, 60, 64],   // A3 C4 E4
   F:  [53, 57, 60],   // F3 A3 C4
   C:  [48, 52, 55, 60], // C3 E3 G3 C4 (root is low; pad transposes up)
   G:  [55, 59, 62],   // G3 B3 D4
   E:  [52, 56, 59],   // E3 G#3 B3
+  Em: [52, 55, 59],   // E3 G3 B3
+  Bb: [46, 50, 53],   // Bb2 D3 F3
+  A:  [45, 49, 52],   // A2 C#3 E3
+  B:  [47, 51, 54],   // B2 D#3 F#3
+  Dm: [50, 53, 57],   // D3 F3 A3
+  D:  [50, 54, 57],   // D3 F#3 A3
 };
 
 // Bass roots (MIDI) per normal-mode bar — one per bar of the 8-bar loop.
@@ -43,6 +50,8 @@ const BASS_PATTERNS = {
   bounce: [1, null, 2, null, 1, null, 2, null],
   fifth:  [1, null, 1.5, null, 1, null, 1.5, null],
   walk:   [1, null, 1.5, null, 2, null, 1, 'next'],
+  // Phase 48 (Stormfront): driving eighths with octave accents.
+  drive:  [1, null, 1, 2, 1, null, 1, 2],
 };
 
 // Arp patterns: 8 eighth-note slots; each entry is an index into the bar's
