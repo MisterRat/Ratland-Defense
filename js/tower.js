@@ -12,6 +12,8 @@ class Tower {
     this.level = 1;
     this.cooldown = 0;
     this.invested = this.def.cost; // total money spent (for sell refund)
+    this.hp = this.maxHp;          // Phase 54: destructible — friendly fire
+    this.alive = true;
     this.angle = 0;                // barrel angle, for rendering
     this.targetId = null;
     this.targetMode = 'first';     // key into TARGET_MODES
@@ -27,6 +29,10 @@ class Tower {
   get range() { return this.def.range * LEVEL_SCALE.range[this.level - 1]; }
   get damage() { return this.def.damage * LEVEL_SCALE.damage[this.level - 1]; }
   get fireRate() { return this.def.fireRate * LEVEL_SCALE.fireRate[this.level - 1]; }
+
+  // Phase 54: durability scales with total money invested, so upgrades make a
+  // tower harder to destroy (and upgradeTower heals it by the delta).
+  get maxHp() { return Math.round(this.invested * TOWER_HP_PER_COST); }
 
   upgradeCost() {
     if (this.level >= UPGRADE_COST_FACTOR.length + 1) return null;
@@ -139,6 +145,7 @@ class Tower {
     if (this.def.pierce) {
       return {
         x: this.x, y: this.y,
+        sourceId: this.id, // Phase 54: slugs never damage their own tower
         targetId: target.id,
         tx: target.pos.x, ty: target.pos.y,
         len: this.range,
@@ -153,6 +160,7 @@ class Tower {
     // Homing projectile (default).
     return {
       x: this.x, y: this.y,
+      sourceId: this.id, // Phase 54: friendly fire excludes the firing tower
       targetId: target.id,
       sourceType: this.type,
       speed: this.def.projSpeed,

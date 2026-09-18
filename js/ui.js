@@ -29,6 +29,10 @@ class UI {
       shop: document.getElementById('shop'),
       towerPanel: document.getElementById('towerPanel'),
       msg: document.getElementById('msg'),
+      // Phase 52: the bottom bar's two zones — left = wave preview / this
+      // level's stats, right = all-time stats + reset button.
+      wpLeft: document.getElementById('wpLeft'),
+      wpTotal: document.getElementById('wpTotal'),
     };
     this.buildEnemyLegend();
     this.buildShop();
@@ -252,15 +256,18 @@ class UI {
   // spawns the wave, so the preview is always accurate. Phase 35: the bar is
   // ALWAYS visible — when no next wave is pending (build phase, wave in
   // progress, after the final wave) it falls back to a Game Stats readout.
+  // Phase 52: all content lives in #wpLeft; #wpTotal (all-time stats + reset)
+  // is its own zone on the right, rendered by syncTotalStats().
   syncWavePreview() {
     const box = this.el.wavePreview;
     if (!box) return;
+    const left = this.el.wpLeft || box; // legacy stub DOMs without #wpLeft
     const g = this.game;
     const next = g.waves.current + 1;
     const pending = !g.building && g.status === 'playing' &&
       !g.waves.inProgress && next <= g.waves.totalWaves;
     box.style.visibility = 'visible'; // always visible (Phase 35)
-    if (!pending) { this.renderStatsBar(box); return; }
+    if (!pending) { this.renderStatsBar(left); return; }
     // Count the composition once per wave (cheap enough to recompute, but the
     // key avoids rebuilding the DOM every frame).
     const list = buildWave(next, g.levelIndex, g.waves.explicitWaves);
@@ -269,11 +276,11 @@ class UI {
     const key = next + ':' + Object.keys(counts).sort().map(k => k + 'x' + counts[k]).join(',');
     if (key !== this._wpKey) {
       this._wpKey = key;
-      box.innerHTML = '';
+      left.innerHTML = '';
       const label = document.createElement('span');
       label.className = 'wp-label';
       label.textContent = `Wave ${next}:`;
-      box.appendChild(label);
+      left.appendChild(label);
       for (const [type, n] of Object.entries(counts)) {
         const chip = document.createElement('span');
         chip.className = 'wp-chip';
@@ -282,7 +289,7 @@ class UI {
         swatch.style.background = ENEMY_TYPES[type].color;
         chip.appendChild(swatch);
         chip.insertAdjacentHTML('beforeend', `<span>${ENEMY_TYPES[type].name} ×${n}</span>`);
-        box.appendChild(chip);
+        left.appendChild(chip);
       }
     }
   }
@@ -314,6 +321,46 @@ class UI {
       chip.insertAdjacentHTML('beforeend', `<span>${text}</span>`);
       box.appendChild(chip);
     }
+  }
+
+  // Phase 52: the bottom bar's RIGHT zone — all-time (of all time) stats plus
+  // the Reset button. Shows the STORED totals as-is (folded in at level end by
+  // main.js, not live-updated). Keyed on the values so the DOM only rebuilds
+  // when something moves; the reset button re-binds its handler on every
+  // rebuild (cheap — rebuilds are rare).
+  syncTotalStats() {
+    const box = this.el.wpTotal;
+    if (!box) return;
+    const t = getTotalStats();
+    const key = `total:${t.damageDealt}|${t.kills}|${t.towersBuilt}|${t.towersSold}` +
+      `|${t.leaked}|${t.dotKills}|${t.directKills}|${t.moneyEarned}|${t.levelsWon}`;
+    if (key === this._wpTotalKey) return;
+    this._wpTotalKey = key;
+    box.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'wp-label';
+    label.textContent = 'All-time:';
+    box.appendChild(label);
+    const items = [
+      [`🏆 ${t.levelsWon} won`, ''],
+      [`⚔ ${t.damageDealt.toLocaleString('en-US')} dmg`, ''],
+      [`💀 ${t.kills} kills`, ''],
+      [`🏗 ${t.towersBuilt} built`, ''],
+      [`💸 ${t.towersSold} sold`, ''],
+      [`💦 ${t.leaked} leaked`, ''],
+    ];
+    for (const [text] of items) {
+      const chip = document.createElement('span');
+      chip.className = 'wp-chip';
+      chip.insertAdjacentHTML('beforeend', `<span>${text}</span>`);
+      box.appendChild(chip);
+    }
+    const reset = document.createElement('button');
+    reset.id = 'wpResetBtn';
+    reset.textContent = '↺ Reset';
+    reset.title = 'Clear all-time stats';
+    reset.addEventListener('click', () => this.handlers.onResetTotalStats());
+    box.appendChild(reset);
   }
 
   // "Show Ranges" toggle: label reflects view.showRanges (active state).

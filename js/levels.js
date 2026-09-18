@@ -47,10 +47,12 @@ const LEVELS = [
   {
     name: 'Crossroads',
     difficulty: 'hard',
-    // Two perpendicular crossovers: (4,4) where col 4 crosses row 4, and
+    // Two perpendicular crossovers: (3,4) where col 3 crosses row 4, and
     // (20,6) where col 20 crosses row 6. No other segment intersections.
+    // Phase 51: shortened ~500px (83→77 cells) — the old 4150px path made it
+    // ~30% easier than its hard-mode neighbors.
     waypoints: [
-      [-1, 4], [12, 4], [12, 12], [4, 12], [4, 2], [20, 2], [20, 10], [16, 10], [16, 6], [28, 6],
+      [-1, 4], [9, 4], [9, 11], [3, 11], [3, 2], [20, 2], [20, 8], [16, 8], [16, 6], [28, 6],
     ],
   },
 ];

@@ -5,6 +5,7 @@ class Projectile {
     this.x = spec.x;
     this.y = spec.y;
     this.targetId = spec.targetId;
+    this.sourceId = spec.sourceId || null; // Phase 54: firing tower — never self-hit
     this.speed = spec.speed;
     this.damage = spec.damage;
     this.sourceType = spec.sourceType || null; // tower key that fired this
@@ -19,7 +20,9 @@ class Projectile {
   }
 
   // Returns impact {x, y, direct: enemy|null} on arrival, null while in flight.
-  update(dt, enemiesById) {
+  // `game` (optional) enables friendly fire (Phase 54): the shell is consumed
+  // on tower impact, dealing flat damage to the first tower it crosses.
+  update(dt, enemiesById, game) {
     const target = enemiesById.get(this.targetId);
     let tx, ty;
     if (target && target.alive) {
@@ -45,6 +48,26 @@ class Projectile {
         poison: this.poison, execute: this.execute,
       };
     }
+
+    // Friendly fire (Phase 54): a tower crossed this frame stops the shell —
+    // flat damage, no splash/DoT/slow, and no enemy impact.
+    if (game) {
+      const nx = this.x + (dx / d) * step;
+      const ny = this.y + (dy / d) * step;
+      let hitTower = null, bestAlong = Infinity;
+      for (const t of game.towers.values()) {
+        if (!t.alive || t.id === this.sourceId) continue; // never self-hit
+        if (segDist(t.x, t.y, this.x, this.y, nx, ny) > TOWER_HIT_RADIUS) continue;
+        const along = ((t.x - this.x) * dx + (t.y - this.y) * dy) / d;
+        if (along < bestAlong) { bestAlong = along; hitTower = t; }
+      }
+      if (hitTower) {
+        this.alive = false;
+        game.damageTower(hitTower, this.damage);
+        return null;
+      }
+    }
+
     this.x += (dx / d) * step;
     this.y += (dy / d) * step;
     return null;
@@ -151,11 +174,13 @@ class PiercingShot {
     this.len = spec.len || d;   // max travel distance
     this.damage = spec.damage;
     this.sourceType = spec.sourceType || null;
+    this.sourceId = spec.sourceId || null; // Phase 54: firing tower — never self-hit
     this.pierce = spec.pierce || 1;
     this.color = spec.color;
     this.alive = true;
     this.traveled = 0;
     this.hitIds = new Set(); // enemies this slug has already hit
+    this.hitTowerIds = new Set(); // Phase 54: towers this slug has already hit
   }
 
   // Advance the slug; damage each newly pierced enemy. Segment-based distance
@@ -182,6 +207,24 @@ class PiercingShot {
       this.hitIds.add(e.id);
       const dmg = this.damage / Math.pow(2, this.hitIds.size - 1); // halves each time
       if (e.takeDamage(dmg, this.sourceType)) game.onEnemyKilled(e);
+    }
+
+    // Phase 54: the slug PENETRATES towers — flat base damage per tower, no
+    // pierce-count consumption and no halving (enemy DPS is unchanged).
+    // Collect first: damageTower may delete a destroyed tower from the Map.
+    if (game) {
+      const freshTowers = [];
+      for (const t of game.towers.values()) {
+        if (!t.alive || t.id === this.sourceId || this.hitTowerIds.has(t.id)) continue;
+        if (segDist(t.x, t.y, px, py, this.x, this.y) <= TOWER_HIT_RADIUS) freshTowers.push(t);
+      }
+      freshTowers.sort((a, b) =>
+        (a.x - px) * this.ux + (a.y - py) * this.uy -
+        ((b.x - px) * this.ux + (b.y - py) * this.uy));
+      for (const t of freshTowers) {
+        this.hitTowerIds.add(t.id);
+        game.damageTower(t, this.damage);
+      }
     }
 
     if (this.hitIds.size >= this.pierce || this.traveled >= this.len) {

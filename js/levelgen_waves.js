@@ -8,8 +8,8 @@
 // lives = starting lives for the level, bossEvery = boss wave cadence.
 const LG_DIFFICULTY = {
   easy:     { base: 4,  ramp: 0.6,  tank: 0.10, spawnGap: 0.7, hpMul: 1.00, lives: 20, bossEvery: 5, label: 'Easy' },
-  normal:   { base: 6,  ramp: 1.0,  tank: 0.18, spawnGap: 0.7, hpMul: 1.00, lives: 20, bossEvery: 5, label: 'Normal' },
-  hard:     { base: 8,  ramp: 1.4,  tank: 0.28, spawnGap: 0.5, hpMul: 1.15, lives: 15, bossEvery: 4, label: 'Hard' },
+  normal:   { base: 6,  ramp: 1.0,  tank: 0.18, spawnGap: 0.7, hpMul: 1.05, lives: 20, bossEvery: 5, label: 'Normal' }, // Phase 51: 1.00→1.05
+  hard:     { base: 8,  ramp: 1.4,  tank: 0.28, spawnGap: 0.5, hpMul: 1.10, lives: 15, bossEvery: 4, label: 'Hard' }, // Phase 51: 1.15→1.10
   nightmare:{ base: 10, ramp: 1.9,  tank: 0.38, spawnGap: 0.4, hpMul: 1.35, lives: 10, bossEvery: 3, label: 'Nightmare' },
 };
 

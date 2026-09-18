@@ -80,6 +80,12 @@ function levelStartMoney(levelIndex) {
   return LEVEL_START_MONEY[i];
 }
 const SELL_REFUND = 0.7;
+// Phase 54: tower durability. maxHp = invested × this (upgrades raise it via
+// invested), and TOWER_HIT_RADIUS is the friendly-fire hit box — it matches the
+// base-plate arc drawn in render.js drawTower() so a projectile "hits" exactly
+// what looks like the tower's body.
+const TOWER_HP_PER_COST = 2;
+const TOWER_HIT_RADIUS = GRID.cell * 0.36 + 4;
 const TOTAL_WAVES = 12;
 const WAVE_DELAY = 6;          // seconds between auto wave starts
 const WIN_ADVANCE_DELAY = 3.5;  // seconds to show the victory banner before auto-advancing
@@ -100,7 +106,7 @@ const TOWER_TYPES = {
   flame: {
     name: 'Flame', cost: 100, color: '#ff6b35', unlockLevel: 3, img: 'assets/flame.png',
     range: 140, damage: 6, fireRate: 2.0, projSpeed: 420, splash: 0, slow: 0,
-    burn: { dps: 10, duration: 2.5 },
+    burn: { dps: 14, duration: 2.5 }, // Phase 51: 10→14 (beats Bulwark's 6/s regen at L1)
     desc: 'Burns targets over time; fire spreads to enemies in contact.',
   },
   cannon: {
@@ -223,12 +229,13 @@ const ENEMY_TYPES = {
   wet:    { name: 'Soused',    hp: 45, speed: 70, reward: 10, livesCost: 1, radius: 11, color: '#3fb6c9', resist: ['flame'], unlockLevel: 4 },
   fast:   { name: 'Skitterer', hp: 26, speed: 120, reward: 8, livesCost: 1, radius: 9, color: '#ffd76a', resist: ['cannon'], unlockLevel: 5 },
   camo:   { name: 'Prowler',   hp: 45, speed: 90, reward: 10, livesCost: 1, radius: 10, color: '#9aa77a', resist: ['sniper'], unlockLevel: 6 },
-  // Colossus resists every tower EXCEPT the Mortar — the one tower it has no
-  // resistance to. (Mortar shells deal damage as sourceType 'mortar' and their
-  // DoTs apply without resistance, so no enemy can resist a mortar payload.)
+  // Colossus resists every damage tower EXCEPT the Mortar and the Reaper —
+  // its two weaknesses. (Mortar shells deal damage as sourceType 'mortar' and
+  // their DoTs apply without resistance, so no enemy can resist a mortar
+  // payload; Phase 51 dropped 'reaper' so execute pressure matters on bosses.)
   boss:   { name: 'Colossus',  hp: 900, speed: 38, reward: 120, livesCost: 5, radius: 18, color: '#ff5da2',
             resist: ['basic', 'cannon', 'flame', 'frost', 'sniper', 'railgun',
-                      'tesla', 'venom', 'reaper', 'mint', 'warden'], unlockLevel: 1 },
+                      'tesla', 'venom', 'mint', 'warden'], unlockLevel: 1 },
   // New roster (Phase 19): behavioral enemies. All unlock after level 6.
   // fission splits into spore children on death (splits); spore is childOnly —
   // it is never spawned by waves, only by a dying fission.

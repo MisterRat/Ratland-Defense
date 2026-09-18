@@ -5,6 +5,10 @@
 <title>Ratland Defense</title>
 <style>
   :root { color-scheme: dark; }
+  /* Phase 53: the page is an app, not a document — js/fit.js scales the body
+     down to fit smaller windows, and the (unscaled) layout box must not
+     produce scrollbars while it does. Harmless at scale 1. */
+  html { overflow: hidden; }
   body { margin: 0; background: #14171c; color: #dfe6ee;
          font-family: system-ui, sans-serif; display: flex;
          flex-direction: column; align-items: center; gap: 8px; padding: 12px; }
@@ -54,9 +58,18 @@
     padding: 4px 8px; font-size: 12px; width: 100%; box-sizing: border-box;
     min-height: 24px; }
   #wavePreview .wp-label { color: #ffd76a; font-weight: 600; }
+  /* Phase 52: the bar is a two-zone row — #wpLeft holds the existing content
+     (wave-composition chips or this level's Stats readout) and #wpTotal the
+     all-time stats + reset button, pinned to the right edge. */
+  #wpLeft { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  #wpTotal { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    margin-left: auto; }
   .wp-chip { display: flex; gap: 4px; align-items: center; background: #1d232c;
     border-radius: 4px; padding: 2px 6px; }
   .wp-chip .swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  #wpResetBtn { background: #3a2730; border: 1px solid #6b4152; color: #ffb3c0;
+    padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  #wpResetBtn:hover { background: #4a3140; }
   /* First-time tutorial card: floats top-center over the play area. The
      wrapper is pointer-events:none so it never blocks the canvas/shop; only
      the card itself captures clicks (its buttons). */
@@ -97,7 +110,9 @@
     </div>
   </div>
   <div id="msg">Pick a tower, click a grass tile to build, then press ▶ Resume to start.</div>
-  <div id="wavePreview"></div>
+  <!-- Phase 52: two-zone bottom bar — left = wave preview / this level's stats,
+       right = all-time (of all time) stats + reset button. -->
+  <div id="wavePreview"><div id="wpLeft"></div><div id="wpTotal"></div></div>
   <!-- Classic scripts in dependency order (works from file:// without a server) -->
   <script src="js/config.js"></script>
   <!-- Terrain (pond layout) before assets.js: its auto-init loads the pond
@@ -115,6 +130,8 @@
   <script src="js/level_custom.js"></script>
   <script src="js/progress.js"></script>
   <script src="js/score.js"></script>
+  <!-- Phase 52: all-time stats store (loads before game.js/main.js use it). -->
+  <script src="js/totalstats.js"></script>
   <script src="js/enemy.js"></script>
   <script src="js/tower.js"></script>
   <script src="js/tower_tesla.js"></script>
@@ -138,5 +155,8 @@
   <script src="js/tutorial.js"></script>
   <script src="js/input.js"></script>
   <script src="js/main.js"></script>
+  <!-- Phase 53: windowed-mode fit — scales the whole page down (never up) to
+       fit smaller browser windows. Page chrome only; loads last, after main. -->
+  <script src="js/fit.js"></script>
 </body>
 </html>

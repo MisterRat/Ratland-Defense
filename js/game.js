@@ -82,7 +82,8 @@ class Game {
     // damageDealt (effective, post-resistance), towers built/sold, enemies
     // leaked, and the DoT-vs-direct kill split (dotKills + directKills === kills).
     this.stats = { kills: 0, moneyEarned: 0, wavesSurvived: 0,
-      damageDealt: 0, towersBuilt: 0, towersSold: 0, leaked: 0, dotKills: 0, directKills: 0 };
+      damageDealt: 0, towersBuilt: 0, towersSold: 0, towersDestroyed: 0,
+      leaked: 0, dotKills: 0, directKills: 0 };
     this._cache = null;
   }
 
@@ -141,7 +142,10 @@ class Game {
     if (this.money < cost || !this.canPlace(cx, cy)) return false;
     this.money -= cost;
     const tower = new Tower(typeName, cx, cy);
-    if (def.dynamicCost) tower.invested = cost; // sell refund tracks the real cost
+    if (def.dynamicCost) {
+      tower.invested = cost; // sell refund tracks the real cost
+      tower.hp = tower.maxHp; // Phase 54: durability follows the real cost
+    }
     this.towers.set(key(cx, cy), tower);
     this.stats.towersBuilt++; // Phase 35: only counts successful placements
     if (this.building) this.startIfReady(); // first tower un-pauses the level
@@ -174,8 +178,10 @@ class Game {
     const cost = tower.upgradeCost();
     if (cost == null || this.money < cost) return false;
     this.money -= cost;
+    const hpBefore = tower.maxHp; // Phase 54: heal by the durability delta
     tower.invested += cost;
     tower.level++;
+    tower.hp += tower.maxHp - hpBefore;
     return true;
   }
 
@@ -183,6 +189,21 @@ class Game {
     this.money += tower.sellValue();
     this.towers.delete(key(tower.cx, tower.cy));
     this.stats.towersSold++; // Phase 35
+  }
+
+  // Phase 54: friendly fire. Flat HP damage only — no resistance, DoT, or
+  // AoE. Destruction removes the tower with NO sell refund (the loss is the
+  // penalty) and leaves a death disc + message so it reads as an explosion.
+  damageTower(tower, amount) {
+    if (!tower.alive) return;
+    tower.hp -= amount;
+    if (tower.hp > 0) return;
+    tower.alive = false;
+    this.towers.delete(key(tower.cx, tower.cy));
+    this.stats.towersDestroyed++;
+    this.corpses.push({ x: tower.x, y: tower.y, radius: TOWER_HIT_RADIUS, color: tower.def.color, timer: DEATH_ANIM });
+    SFX.play('boom');
+    this.setMessage(`${tower.def.name} destroyed by friendly fire!`);
   }
 
   // --- events from systems --------------------------------------------
@@ -285,10 +306,10 @@ class Game {
     for (const s of this.shots) s.update(dt, this.enemies, this);
     this.shots = this.shots.filter(s => s.alive);
 
-    // Projectiles.
+    // Projectiles. (game passed so homing shells can hit towers — Phase 54.)
     this._cache = null; // enemy set may change; rebuild lookup
     for (const p of this.projectiles) {
-      const impact = p.update(dt, this.enemiesById);
+      const impact = p.update(dt, this.enemiesById, this);
       if (!impact) continue;
       if (p instanceof MortarShell) applyMortarBlast(impact, this.enemies, this);
       else applyImpact(impact, this.enemies, this);
@@ -296,8 +317,12 @@ class Game {
     this.projectiles = this.projectiles.filter(p => p.alive);
     this.enemies = this.enemies.filter(e => e.alive);
 
-    // Win check: all waves done, nothing left alive.
-    if (this.waves.current >= this.waves.totalWaves && !this.waves.inProgress && this.enemies.length === 0) {
+    // Win check: all waves done, nothing left alive. Guarded by 'playing' so a
+    // loss that landed earlier in THIS tick (last enemy of the final wave
+    // leaking and draining the final life) is never overwritten — a 0-life
+    // "win" was the Phase-51 balance-pass bug.
+    if (this.status === 'playing' &&
+        this.waves.current >= this.waves.totalWaves && !this.waves.inProgress && this.enemies.length === 0) {
       this.status = 'won';
     }
 

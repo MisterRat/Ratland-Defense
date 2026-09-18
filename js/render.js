@@ -212,6 +212,15 @@ class Renderer {
       ctx.arc(t.x - 8 + i * 8, t.y + r * 0.55, 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
+    // Phase 54: HP bar — only when damaged (mirrors the enemy bar pattern).
+    if (t.hp < t.maxHp) {
+      const w = 40;
+      const frac = Math.max(0, t.hp / t.maxHp);
+      ctx.fillStyle = '#11151a';
+      ctx.fillRect(t.x - w / 2, t.y - r - 9, w, 5);
+      ctx.fillStyle = frac > 0.5 ? '#67d46f' : (frac > 0.25 ? '#ffd76a' : '#e5533d');
+      ctx.fillRect(t.x - w / 2, t.y - r - 9, w * frac, 5);
+    }
   }
 
   drawEnemy(ctx, e, hoverPx) {

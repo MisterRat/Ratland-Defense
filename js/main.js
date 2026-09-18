@@ -190,6 +190,13 @@ const handlers = {
     view.aimingMortar = tower;
     game.setMessage('Click any tile to set the Mortar target. Right-click / Esc cancels.');
   },
+  // Phase 52: clear the all-time stats (the bottom bar's right side). The
+  // confirm() guard keeps an accidental click from wiping the history.
+  onResetTotalStats() {
+    if (!confirm('Clear ALL all-time stats? This cannot be undone.')) return;
+    resetTotalStats();
+    game.setMessage('All-time stats cleared.');
+  },
 };
 
 function defName(tower) { return TOWER_TYPES[tower.type].name; }
@@ -239,11 +246,19 @@ function frame(now) {
     }
   }
 
+  // Phase 54: a selected tower destroyed by friendly fire must not keep its
+  // panel open — deselect it and hide the panel.
+  if (view.selectedTower && !view.selectedTower.alive) {
+    view.selectedTower = null;
+    ui.renderTowerPanel(null);
+  }
+
   renderer.draw(game, view);
   ui.updateHUD();
   ui.syncShopSelection();
   ui.syncEnemyLegend(); // grey out enemy types not active on this map
   ui.syncWavePreview(); // next wave's composition while between waves
+  ui.syncTotalStats(); // Phase 52: all-time stats + reset (right zone)
   ui.syncShowRangesBtn(); // keep the toggle label in sync with view.showRanges
   if (tutorial) tutorial.update(view, game);
 
@@ -257,6 +272,9 @@ function frame(now) {
       // Level end: persist the per-level best, then show it on the banner.
       const final = game.endScore();
       const best = recordScore(game.levelIndex, final.score);
+      // Phase 52: fold this level's stats into the all-time store — once per
+      // win/loss (a crash mid-level simply never folds; acceptable).
+      foldTotalStats(game.stats, game.status === 'won');
       const bestLine = best > 0 ? ` — Best: ${best.toLocaleString('en-US')}` : '';
       if (game.status === 'won') {
         game.setMessage(`🏆 Victory! All waves cleared. Score: ${final.score.toLocaleString('en-US')}${bestLine}`, 9999);
