@@ -169,6 +169,16 @@ const TOWER_TYPES = {
     ammoTypes: ['cannon', 'flame', 'frost', 'tesla', 'venom'],
     desc: 'Lobs a shell at ANY map point every 4s. Pick ammo in the panel.',
   },
+  // Cruiser (Phase 55): water-only missile tower. Fires a homing missile that
+  // locks on and follows its target; if the target dies or leaves range
+  // before impact, the missile self-destructs (no damage). Range = half the
+  // map width (700px). Damage 225 ≈ 1/4 of the Colossus boss.
+  cruiser: {
+    name: 'Cruiser', cost: 400, color: '#4cc9f0', unlockLevel: 7, img: 'assets/cruiser.png',
+    range: 700, damage: 225, fireRate: 0.25, projSpeed: 500, splash: 0, slow: 0,
+    waterOnly: true,
+    desc: 'Pond-only. Fires a lock-on missile (range = half the map). Self-destructs if the target dies or escapes.',
+  },
 };
 
 // Warden dynamic placement cost: first $300, each additional +$100.
