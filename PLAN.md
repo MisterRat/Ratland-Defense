@@ -277,3 +277,45 @@ damages it. Full suite: **44/45 pass** (the one failure, `scratch_phase36.mjs`,
 pre-exists on the clean tree — spiral-generator scratch, unrelated).
 
 **Status:** done — implemented, tested, FILE_SUMMARY updated.
+
+## Phase 55 — Cruiser (water-only missile tower)
+
+**Request:** Water-based (pond only) tower firing missiles. Damage 225,
+cost 400, fire rate 0.25, range = half the map. Locks on and follows; if the
+target dies or leaves range before impact, the missile self-destructs
+(no damage). Fire rate may be adjusted for balance.
+
+**Design decisions:**
+- `range: 700` (half of CANVAS_W=1400) — explicit interpretation of "half
+  the map".
+- `waterOnly: true` in config; `canPlace(cx, cy, typeName)` becomes
+  type-aware: water cells rejected for all towers EXCEPT Cruiser, which is
+  rejected on land. `placeTower`/preview pass the placing type.
+- New `js/tower_cruiser.js`: `CruiserMissile` class. Spec from tower.js:
+  `{type:'cruiser', x,y (origin), sourceId, targetId, speed, damage, maxRange}`.
+  Self-destruct (no impact) when target is gone OR distance(tower→target) >
+  maxRange (live read of tower range, so upgrades extend it). Impact reuses
+  `applyImpact` with splash 0.
+- Boss (Colossus) does NOT resist 'cruiser' — it already resists everything
+  except mortar+reaper; keeping cruiser as a third boss threat is the point
+  of "1/4 Colossus" damage. smoke_mortar boss-resist assertion uses
+  `TOWER_TYPES.length - 2` → must become `- 3`.
+- Easy difficulty has 0 ponds ⇒ Cruiser unplaceable on easy maps (accepted,
+  documented; built-in levels are L1–L6 anyway).
+- Fire rate: keep 0.25 as specified; validate with balance_sim after.
+
+**Steps:**
+1. config.js: add `cruiser` entry (cost 400, damage 225, fireRate 0.25,
+   range 700, projSpeed 500, unlockLevel 7, waterOnly).
+2. tower.js: cruiser branch in update() → cruiser spec (after mortar branch).
+3. js/tower_cruiser.js: CruiserMissile (homing + self-destruct rules).
+4. game.js: canPlace type-aware; dispatch `spec.type==='cruiser'` →
+   new CruiserMissile(spec); include tower_cruiser.js in index.html order.
+5. render.js: cruise missile visual branch; placement preview passes type.
+6. sfx_sounds.js: FIRE_SOUND.cruiser; assets/cruiser.png via
+   gen_tower_sprites.py extension.
+7. Tests: new tests/smoke_cruiser.mjs (placement rules, lock-on, self-destruct
+   on death + on out-of-range, impact damage); update smoke_tower_unlock
+   (13 towers, L7 list) and smoke_mortar boss-resist count.
+8. balance_sim: add cruiser to BUILD_ORDER with water-cell placement; run
+   full suite; adjust fire rate only if a level breaks.
