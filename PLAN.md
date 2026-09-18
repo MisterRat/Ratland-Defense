@@ -319,3 +319,8 @@ target dies or leaves range before impact, the missile self-destructs
    (13 towers, L7 list) and smoke_mortar boss-resist count.
 8. balance_sim: add cruiser to BUILD_ORDER with water-cell placement; run
    full suite; adjust fire rate only if a level breaks.
+
+**Status:** done — implemented, tested (smoke_cruiser 7/7, full suite green,
+balance matrix: all runs terminated + deterministic, easy floor holds; Cruiser
+placed on hard/nightmare L7+ runs without breaking any outcome), FILE_SUMMARY
+updated. Fire rate kept at 0.25 as specified — no balance adjustment needed.
