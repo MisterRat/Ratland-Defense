@@ -6,3 +6,6 @@
 build/
 dist/
 __pycache__/
+
+# Windows metadata artifacts
+*.Zone.Identifier
