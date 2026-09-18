@@ -332,6 +332,28 @@ class Renderer {
       ctx.stroke();
       return;
     }
+    // Cruiser missile (Phase 55): a small elongated dart with an exhaust tail,
+    // oriented along its heading — reads as a missile, not a bullet.
+    if (p instanceof CruiserMissile) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle || 0);
+      ctx.strokeStyle = 'rgba(255,160,60,0.8)'; // exhaust
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-9, 0); ctx.lineTo(-16, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#2b3a4a'; // body
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = p.color; // nose
+      ctx.beginPath();
+      ctx.arc(5, 0, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
@@ -371,7 +393,7 @@ class Renderer {
     if (!view.hoverCell) return; // mouse hasn't entered the canvas yet
     const { cx, cy } = view.hoverCell;
     if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return;
-    const ok = game.canPlace(cx, cy);
+    const ok = game.canPlace(cx, cy, view.placingType); // Phase 55: water-aware
     const def = TOWER_TYPES[view.placingType];
     const x = (cx + 0.5) * cell, y = (cy + 0.5) * cell;
     ctx.fillStyle = ok ? 'rgba(25,130,45,0.5)' : 'rgba(229,83,61,0.3)';

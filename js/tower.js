@@ -128,6 +128,23 @@ class Tower {
     if (this.cooldown > 0) return null;
     this.cooldown = 1 / this.fireRate;
 
+    // Cruiser (Phase 55): lock-on missile. Self-destructs (no damage) if the
+    // target dies or leaves range before impact — the missile re-checks both
+    // every frame against the tower's LIVE range (upgrades extend it).
+    if (this.def.waterOnly) {
+      return {
+        type: 'cruiser',
+        x: this.x, y: this.y,
+        sourceId: this.id,
+        targetId: target.id,
+        sourceType: this.type,
+        speed: this.def.projSpeed,
+        damage: this.damage * auraMult,
+        maxRange: this.range,
+        color: this.def.color,
+      };
+    }
+
     // Tesla: chain lightning — instant bolt + hops, no projectile.
     if (this.def.chain) {
       return {

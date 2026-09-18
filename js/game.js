@@ -118,11 +118,16 @@ class Game {
 
   // --- player actions -------------------------------------------------
 
-  canPlace(cx, cy) {
+  // Phase 55: type-aware water rule. `typeName` (optional) selects the tower
+  // being placed — waterOnly towers (Cruiser) REQUIRE a pond cell; every other
+  // tower is rejected on water. Without typeName, water stays rejected (the
+  // legacy behavior) so old call sites are unaffected.
+  canPlace(cx, cy, typeName) {
     if (cx < 0 || cx >= GRID.cols || cy < 0 || cy >= GRID.rows) return false;
     if (this.towers.has(key(cx, cy))) return false;
-    // No towers on water (terrain.js; absent in legacy smoke bundles).
-    if (typeof isWaterCell === 'function' && isWaterCell(this.ponds, cx, cy)) return false;
+    const water = typeof isWaterCell === 'function' && isWaterCell(this.ponds, cx, cy);
+    const def = typeName ? TOWER_TYPES[typeName] : null;
+    if (water !== !!(def && def.waterOnly)) return false;
     return !isPathCell(this.path, cx, cy);
   }
 
@@ -139,7 +144,7 @@ class Game {
     const cost = def && def.dynamicCost ? this.wardenCost() : TOWER_COSTS[typeName];
     // Roster-aware gate: unlockLevel AND the level's tower roster (Phase 29).
     if (!cost || !isTowerAllowedOnLevel(typeName, this.levelIndex)) return false;
-    if (this.money < cost || !this.canPlace(cx, cy)) return false;
+    if (this.money < cost || !this.canPlace(cx, cy, typeName)) return false; // Phase 55: water rule
     this.money -= cost;
     const tower = new Tower(typeName, cx, cy);
     if (def.dynamicCost) {
@@ -290,6 +295,7 @@ class Game {
       SFX.play(FIRE_SOUND[t.type] || 'pew'); // per-tower fire sound
       if (spec.type === 'chain') applyChainLightning(this, spec); // instant bolt + hops
       else if (spec.type === 'mortar') this.projectiles.push(new MortarShell(spec));
+      else if (spec.type === 'cruiser') this.projectiles.push(new CruiserMissile(spec, t)); // Phase 55
       else if (spec.pierce) this.shots.push(new PiercingShot(spec));
       else this.projectiles.push(new Projectile(spec));
     }

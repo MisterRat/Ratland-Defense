@@ -130,6 +130,6 @@ const FIRE_SOUND = {
   basic: 'pew', cannon: 'boom', sniper: 'crack',
   railgun: 'zip', frost: 'whoosh', flame: 'sizzle',
   tesla: 'crack', venom: 'sizzle', reaper: 'thud',
-  mint: 'pop', warden: 'pop', mortar: 'boom',
+  mint: 'pop', warden: 'pop', mortar: 'boom', cruiser: 'zip', // Phase 55
 };
 
