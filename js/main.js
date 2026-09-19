@@ -72,6 +72,7 @@ function loadLevel(i, carryOver) {
     game.setMessage(`Level ${i + 1}: ${target.name}`);
   }
   ui.syncLevelSelect(); // dropdown must follow the map we just loaded
+  Music.repick(); // Phase 61: each new level gets a different random track (no-op if music is off)
 }
 
 // Level cleared: persist progression, then auto-advance to the next level.
@@ -148,9 +149,9 @@ const handlers = {
     } else {
       const ok = Music.start();
       ui.el.musicBtn.textContent = ok ? '🎵 Stop' : '🎵 Start';
-      // Phase 48: show which of the six songs was picked at random.
+      // Phase 60: show which of the nine real tracks was picked at random.
       game.setMessage(ok
-        ? `Music started: ${NORMAL_SONGS[Music.songIndex].name}.`
+        ? `Music started: ${MUSIC_SONGS[Music.songIndex].name}.`
         : 'Music not supported in this browser.');
     }
   },

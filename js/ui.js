@@ -154,8 +154,10 @@ class UI {
     }
   }
 
-  // Mute button: label reflects SFX.muted; the click is a user gesture, so it
-  // also unlocks (creates/resumes) the AudioContext for subsequent sounds.
+  // Mute button (Phase 60): mutes SOUND EFFECTS only — SFX.muted gates
+  // SFX.play(); the music engine no longer reads it, so 🎵 music is untouched.
+  // Label reflects SFX.muted; the click is a user gesture, so it also unlocks
+  // (creates/resumes) the AudioContext for subsequent sounds.
   bindMuteButton() {
     const btn = this.el.muteBtn;
     if (!btn) return;
