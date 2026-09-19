@@ -84,6 +84,7 @@ class Game {
     this.stats = { kills: 0, moneyEarned: 0, wavesSurvived: 0,
       damageDealt: 0, towersBuilt: 0, towersSold: 0, towersDestroyed: 0,
       leaked: 0, dotKills: 0, directKills: 0 };
+    this.speedMult = 1.0; // Phase 59: set by main.js each frame (speed income bonus)
     this._cache = null;
   }
 
@@ -175,7 +176,8 @@ class Game {
     const r = this.waves.startNext(this, false);
     if (!r) return null;
     this.stats.wavesSurvived = Math.max(this.stats.wavesSurvived, r.wave);
-    if (r.bonus > 0) this.stats.moneyEarned += r.bonus;
+    // Phase 59: the bonus is EARNED money — it carries the speed income bonus.
+    if (r.bonus > 0) this.stats.moneyEarned += r.bonus * this.speedMult;
     return r;
   }
 
@@ -214,7 +216,8 @@ class Game {
   // --- events from systems --------------------------------------------
 
   onEnemyKilled(enemy) {
-    this.money += enemy.def.reward;
+    const reward = enemy.def.reward * this.speedMult; // Phase 59: speed income bonus
+    this.money += reward;
     this.stats.kills++;
     // Phase 35: DoT vs direct split. A kill is DoT when the enemy still has
     // an active burn or poison — DoT deaths arrive via the 'burned' state
@@ -222,7 +225,7 @@ class Game {
     // calls here with the DoTs already applied, so the flag is reliable.
     if (enemy.burnTimer > 0 || enemy.poisonTimer > 0) this.stats.dotKills++;
     else this.stats.directKills++;
-    this.stats.moneyEarned += enemy.def.reward; // total income, not balance
+    this.stats.moneyEarned += reward; // total income, not balance
     SFX.play('pop'); // enemy death
     // Phase 34: death animation — a shrinking/fading disc at the kill spot.
     // Covers every non-leak cause (hits, splash, DoT, chain, mortar, railgun)
@@ -289,7 +292,8 @@ class Game {
       if (!spec) continue;
       if (spec.type === 'income') {
         // Mint: +$ every interval. Income is NOT counted toward stats.moneyEarned.
-        this.money += spec.amount;
+        // Phase 59: the speed income bonus applies to Mint ticks too.
+        this.money += spec.amount * this.speedMult;
         continue;
       }
       SFX.play(FIRE_SOUND[t.type] || 'pew'); // per-tower fire sound

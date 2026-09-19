@@ -383,3 +383,61 @@ VISIBLE stat — `towersDestroyed` joined `TOTAL_STAT_FIELDS` (folds into the
 all-time store at level end like the others) and both bottom-bar readouts show
 a "💥 N lost" chip (per-level Stats bar + All-time bar, both value-keyed).
 No new counter, no rename — display only.
+
+## Phase 58 — Cruiser on water: no base plate under transparent sprites
+
+**Request:** The new transparent PNG for the Cruiser shows a dark circle
+underneath when placed in a pond. Only the pond + ship should be visible.
+Check the other towers aren't affected the same way.
+
+**Diagnosis:** `Renderer.drawTower` (render.js) unconditionally painted the
+dark base-plate disc (`#151a21`, radius 22px) BEFORE drawing the sprite — for
+every tower type. Land sprites are opaque discs sized to cover that plate, so
+it was invisible there; the Cruiser's PNG is transparent outside the ship, so
+the plate showed through as a dark circle behind/around it on the pond.
+
+**Fix:** the plate is removed for EVERY tower — sprites carry their own look,
+and the ground/pond shows through each PNG's alpha instead of a foreign dark
+disc. The gold selection ring is decoupled from the plate: it's its own
+`arc`+`stroke` at the same radius, so any selected tower still gets the
+highlight ring with no fill.
+
+**Tests:** `tests/smoke_assets.mjs` grows check 6 — a call-sequence ctx proxy
+asserts NO fill happens before the sprite for water AND land towers alike, and
+the selected-tower gold ring is still stroked with no fill. Check 4's fallback
+arc count drops from 2 to 1 (body only — no plate arc).
+
+## Phase 59 — Speed-based income bonus (1x / 2x = ×1.2 / 3x = ×1.4)
+
+**Request:** money earned should be higher at higher speeds — playing fast
+should pay, not just compress time. User-specified multipliers: 1x = normal,
+2x = ×1.2, 3x = ×1.4.
+
+**Design:** the multiplier applies to EARNED income only — kill rewards, Mint
+ticks and early-send bonuses. NOT applied to sell refunds, starting money,
+carry-over or retry bonuses (level-entry economics, not gameplay earnings).
+The bonus flows into `stats.moneyEarned`, so faster play also scores slightly
+higher (consistent incentive).
+
+**Implementation:**
+- `js/config.js`: `SPEED_MONEY_MULT = {1: 1.0, 2: 1.2, 3: 1.4}` +
+  `speedMoneyMult(speed)` (unknown/missing → 1.0 fallback).
+- `js/main.js`: `frame()` sets `game.speedMult = speedMoneyMult(speed)` each
+  unpaused frame; `onSendWave` credits the early-send bonus as
+  `r.bonus × speedMoneyMult(speed)`.
+- `js/game.js`: `reset()` initializes `this.speedMult = 1.0` (so legacy
+  bundles/tests see normal money unless main.js drives it); `onEnemyKilled`
+  pays `reward × speedMult` to both `money` and `stats.moneyEarned`; the Mint
+  income branch pays `spec.amount × speedMult` (still excluded from
+  `stats.moneyEarned`); `sendNextWave` credits
+  `bonus × speedMult` into `stats.moneyEarned`.
+
+**Notes:** fractional rewards are fine — `formatMoney` floors for display and
+score/fold boundaries round. At 3x the real-time Mint rate is already 3×
+(sim-time interval); the ×1.4 stacks on top by design.
+
+**Tests:** new `tests/smoke_speed_money.mjs` (8 sections): unit checks of
+`speedMoneyMult`; default/2x/3x kill rewards (7→8.4, 16→22.4); Mint tick at
+2x (+$12, moneyEarned untouched); early-send bonus ×1.4; sell refund $35
+unmultiplied; starting/retry money unmultiplied. Full regression: 45/45 smoke
+tests pass.

@@ -4,7 +4,7 @@
 // the MINOR number is bumped automatically by .git/hooks/post-commit after
 // every commit; the MAJOR number is bumped manually (by the user) for big
 // releases. Format: "MAJOR.MINOR".
-const GAME_VERSION = '1.8';
+const GAME_VERSION = '1.9';
 
 const GRID = { cols: 28, rows: 16, cell: 50 };
 const CANVAS_W = GRID.cols * GRID.cell; // 1400
@@ -30,6 +30,15 @@ const RETRY_BONUS = 50;
 const CARRYOVER_FRACTION = { easy: 1.0, normal: 0.75, hard: 0.5, nightmare: 0.25 };
 function carryoverFactor(difficultyKey) {
   return CARRYOVER_FRACTION[difficultyKey] ?? 0.75;
+}
+
+// Phase 59: speed-based income bonus — playing faster earns more money per
+// kill / Mint tick / early-send bonus (+20% at 2x, +40% at 3x). NOT applied to
+// sell refunds, starting money, carry-over or the retry bonus — those are
+// level-entry economics, not gameplay earnings.
+const SPEED_MONEY_MULT = { 1: 1.0, 2: 1.2, 3: 1.4 };
+function speedMoneyMult(speed) {
+  return SPEED_MONEY_MULT[speed] || 1.0; // unknown/missing → normal (1.0)
 }
 const START_LIVES = 20;
 

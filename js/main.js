@@ -112,7 +112,10 @@ const handlers = {
     if (game.building) return; // waves start with the first tower
     const r = game.sendNextWave();
     if (r) {
-      game.money += r.bonus;
+      // Phase 59: early-send bonus is earned money — it carries the speed
+      // income bonus (read straight from `speed`, so a click while paused at
+      // a changed speed still gets the right multiplier).
+      game.money += r.bonus * speedMoneyMult(speed);
       game.setMessage(r.bonus > 0
         ? `Wave ${r.wave} sent early! +$${r.bonus} bonus.`
         : `Wave ${r.wave} incoming!`);
@@ -239,6 +242,7 @@ function frame(now) {
 
   // Paused: freeze the simulation (and the win auto-advance), keep rendering.
   if (!paused) {
+    game.speedMult = speedMoneyMult(speed); // Phase 59: income bonus follows speed
     acc += dt * speed;
     while (acc >= STEP) {
       game.update(STEP);
