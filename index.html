@@ -45,8 +45,11 @@
   #towerPanel { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
     padding: 8px; display: none; }
   #towerPanel > div, #towerPanel > button { margin-bottom: 6px; }
-  .target-row { display: flex; gap: 6px; align-items: center; }
-  .target-row select { flex: 1; cursor: pointer; }
+  /* .prefer-row (Phase 62) shares the Target row's layout: label left,
+     dropdown fills the rest — without this the block-level select wraps to
+     its own line and the panel grows a row. */
+  .target-row, .prefer-row { display: flex; gap: 6px; align-items: center; }
+  .target-row select, .prefer-row select { flex: 1; cursor: pointer; }
   #msg { font-size: 14px; color: #8b97a7; min-height: 18px; }
   /* Bottom bar: a full-width bar across the bottom, below the message line.
      Phase 35: ALWAYS visible — it shows the next-wave enemy composition chips
@@ -99,7 +102,7 @@
     <button class="tower-btn" id="showRangesBtn">◎ Ranges</button>
     <button class="tower-btn" id="speedBtn">Speed: 1x</button>
     <button class="tower-btn" id="pauseBtn">▶ Resume</button>
-    <button class="tower-btn" id="muteBtn">🔊 Sound</button>
+    <button class="tower-btn" id="muteBtn">🔊 SFX</button>
     <button class="tower-btn" id="musicBtn">🎵 Start</button>
     <label>🎚 <select id="diffSelect" class="tower-btn"></select></label>
     <a class="tower-btn" href="levelgen.html" style="text-decoration:none;">🎲 Level Generator</a>
