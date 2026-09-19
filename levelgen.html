@@ -81,13 +81,20 @@
   .lg-instructions ol { margin: 0; padding-left: 18px; }
   .lg-instructions code { background: #1d232c; border: 1px solid #39424f; border-radius: 4px;
     padding: 1px 5px; font-size: 12px; color: #8fd0ff; }
+
+  /* Version chip: the app's MAJOR.MINOR (js/config.js GAME_VERSION), pinned to
+     the right of the header row on every page. */
+  .version-chip { display: flex; align-items: center; background: #1d232c;
+    border-radius: 4px; padding: 2px 6px; color: #8b97a7; font-size: 12px;
+    margin-left: auto; }
 </style>
 </head>
 <body>
   <h1>🎲 Level Generator</h1>
-  <div style="display:flex; gap:14px;">
+  <div style="display:flex; gap:14px; align-items:center;">
     <a class="back" href="index.html">← Back to game</a>
     <a class="back" href="levels.html">📦 Stored Levels</a>
+    <span class="version-chip" id="versionChip">v—</span>
   </div>
   <div id="wrap">
     <!-- LEFT: enemy legend (index.html style) with a checkbox per type -->
@@ -156,6 +163,8 @@
       lgBuildTowerCheckboxes(document.getElementById('lgTowers'), TOWER_TYPES);
       registerCustomLevels();
       lgInit();
+      // Version chip: show GAME_VERSION (js/config.js) in the header row.
+      document.getElementById('versionChip').textContent = 'v' + GAME_VERSION;
     })();
   </script>
 </body>

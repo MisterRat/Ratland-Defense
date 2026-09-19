@@ -29,6 +29,11 @@
   .ls-empty { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
     padding: 14px; color: #8b97a7; font-size: 13px; text-align: center; }
   #lsMsg { font-size: 14px; color: #8b97a7; min-height: 18px; }
+  /* Version chip: the app's MAJOR.MINOR (js/config.js GAME_VERSION), pinned to
+     the right of the header row on every page. */
+  .version-chip { display: flex; align-items: center; background: #1d232c;
+    border-radius: 4px; padding: 2px 6px; color: #8b97a7; font-size: 12px;
+    margin-left: auto; }
 </style>
 </head>
 <body>
@@ -39,6 +44,7 @@
     <button class="tower-btn" id="lsImport" type="button">📂 Import levels</button>
     <button class="tower-btn" id="lsExportAll" type="button">💾 Export all</button>
     <a class="tower-btn" href="levelgen.html" style="text-decoration:none;">🎲 Generator</a>
+    <span class="version-chip" id="versionChip">v—</span>
   </div>
   <div id="lsList"></div>
   <div id="lsMsg">Import .json level files, export a level (or all) to share them, or delete one you no longer want.</div>
@@ -56,6 +62,8 @@
     (function () {
       registerCustomLevels(); // re-run: the store may have changed since load
       lsInit();
+      // Version chip: show GAME_VERSION (js/config.js) in the header row.
+      document.getElementById('versionChip').textContent = 'v' + GAME_VERSION;
     })();
   </script>
 </body>

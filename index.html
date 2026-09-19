@@ -70,6 +70,10 @@
   #wpResetBtn { background: #3a2730; border: 1px solid #6b4152; color: #ffb3c0;
     padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
   #wpResetBtn:hover { background: #4a3140; }
+  /* Version chip: the app's MAJOR.MINOR (js/config.js GAME_VERSION), pinned to
+     the far right of the bottom bar on every page. */
+  .version-chip { display: flex; align-items: center; background: #1d232c;
+    border-radius: 4px; padding: 2px 6px; color: #8b97a7; font-size: 12px; }
   /* First-time tutorial card: floats top-center over the play area. The
      wrapper is pointer-events:none so it never blocks the canvas/shop; only
      the card itself captures clicks (its buttons). */
@@ -112,7 +116,8 @@
   <div id="msg">Pick a tower, click a grass tile to build, then press ▶ Resume to start.</div>
   <!-- Phase 52: two-zone bottom bar — left = wave preview / this level's stats,
        right = all-time (of all time) stats + reset button. -->
-  <div id="wavePreview"><div id="wpLeft"></div><div id="wpTotal"></div></div>
+  <div id="wavePreview"><div id="wpLeft"></div><div id="wpTotal"></div>
+    <span class="version-chip" id="versionChip">v—</span></div>
   <!-- Classic scripts in dependency order (works from file:// without a server) -->
   <script src="js/config.js"></script>
   <!-- Terrain (pond layout) before assets.js: its auto-init loads the pond
@@ -159,5 +164,9 @@
   <!-- Phase 53: windowed-mode fit — scales the whole page down (never up) to
        fit smaller browser windows. Page chrome only; loads last, after main. -->
   <script src="js/fit.js"></script>
+  <script>
+    // Version chip: show GAME_VERSION (js/config.js) in the bottom bar.
+    document.getElementById('versionChip').textContent = 'v' + GAME_VERSION;
+  </script>
 </body>
 </html>

@@ -324,3 +324,29 @@ target dies or leaves range before impact, the missile self-destructs
 balance matrix: all runs terminated + deterministic, easy floor holds; Cruiser
 placed on hard/nightmare L7+ runs without breaking any outcome), FILE_SUMMARY
 updated. Fire rate kept at 0.25 as specified — no balance adjustment needed.
+
+## Phase 56 — Visible version number + automatic minor bump
+
+**Request:** a version number visible to users, updated after every session.
+Bump policy (user): the MINOR number is bumped automatically; the MAJOR number
+is bumped manually by the user on request.
+
+**Design decisions:**
+- Single source of truth: `GAME_VERSION = 'MAJOR.MINOR'` in js/config.js
+  (loaded by all three pages). Starts at `1.0`.
+- Display: a `.version-chip` (`#versionChip`) on every page — far right of the
+  bottom bar in index.html, right of the header row in levelgen.html and
+  levels.html — set by a tiny inline script to `'v' + GAME_VERSION`, so the
+  displayed value can never drift from the constant.
+- Automation: `hooks/post-commit` (committed in-repo; installed per clone into
+  `.git/hooks/`) bumps the minor after every commit and AMENDS the bump into
+  the same commit — working tree stays clean, and the version the game shows
+  always matches HEAD. It skips when the commit already changed config.js
+  (deliberate manual bump — how major releases are set) and guards against
+  re-entry from the amend.
+- Tests: `tests/smoke_version.mjs` — constant format, all three pages wire the
+  chip to the constant, end-to-end chip text, hook present/executable and
+  minor-only (never touches the major).
+
+**Status:** done — 44/44 smoke tests pass; hook verified live on the phase's
+own commit (1.0 → 1.1, amended). FILE_SUMMARY updated.

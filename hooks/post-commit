@@ -1,0 +1,32 @@
+#!/bin/sh
+# Auto-bump the app version's MINOR number after every commit.
+#
+# The MAJOR number is bumped manually (by the user) for big releases; this
+# hook only touches the minor. If a commit ALREADY changed GAME_VERSION in
+# js/config.js, it is treated as an intentional manual bump and left alone.
+#
+# The bump is amended into the same commit, so the working tree stays clean
+# and the version shown by the game always matches what HEAD contains.
+#
+# Install (once per clone):  cp hooks/post-commit .git/hooks/ && chmod +x .git/hooks/post-commit
+
+if [ -n "$DSH_VERSION_BUMP" ]; then exit 0; fi   # re-entry guard: the amend below re-triggers this hook
+[ -f js/config.js ] || exit 0
+
+# A commit that already changed config.js set the version on purpose — skip.
+git diff --quiet HEAD~1 HEAD -- js/config.js 2>/dev/null && exit 0
+
+cur=$(sed -n "s/^const GAME_VERSION = '\([0-9][0-9]*\.[0-9][0-9]*\)';.*/\1/p" js/config.js)
+case "$cur" in
+  *.*) ;;
+  *) exit 0 ;;   # unexpected format — leave the version alone
+esac
+
+major=${cur%.*}
+minor=$(( ${cur#*.} + 1 ))
+new="$major.$minor"
+
+sed -i "s/^const GAME_VERSION = '$cur';/const GAME_VERSION = '$new';/" js/config.js || exit 0
+git add js/config.js
+DSH_VERSION_BUMP=1 git commit --amend --no-edit --quiet
+echo "version: $cur -> $new (auto-bumped, amended into $(git rev-parse --short HEAD))"
