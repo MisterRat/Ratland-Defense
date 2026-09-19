@@ -183,6 +183,14 @@ const handlers = {
     tower.targetMode = mode;
     game.setMessage(`${defName(tower)} now targets: ${TARGET_MODES[mode]}.`);
   },
+  // Phase 62: type preference — null (Any) clears it.
+  onPreferType(tower, type) {
+    if (type !== null && !ENEMY_TYPES[type]) return;
+    tower.preferType = type;
+    game.setMessage(type
+      ? `${defName(tower)} now prefers ${ENEMY_TYPES[type].name} (falls back to ${TARGET_MODES[tower.targetMode]}).`
+      : `${defName(tower)} targets any enemy.`);
+  },
   onAmmo(tower, ammo) {
     const def = TOWER_TYPES[tower.type];
     if (!def.ammoTypes || !def.ammoTypes.includes(ammo)) return;

@@ -226,6 +226,7 @@ const TARGET_MODES = {
   last:      'Last',       // closest to the start
   closest:   'Closest',    // nearest to the tower
   strongest: 'Strongest',  // highest current HP
+  weakest:   'Weakest',    // lowest current HP
 };
 
 // Per-level multipliers: [level1, level2, level3]

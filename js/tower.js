@@ -17,6 +17,7 @@ class Tower {
     this.angle = 0;                // barrel angle, for rendering
     this.targetId = null;
     this.targetMode = 'first';     // key into TARGET_MODES
+    this.preferType = null;        // Phase 62: enemy type key to prefer, or null (any)
     this.incomeTimer = this.def.income ? this.def.income.interval : 0;
     // Mortar: selected ammo flavor + player-chosen impact point (pixel coords).
     this.ammo = this.def.ammoDefault || null;
@@ -48,9 +49,18 @@ class Tower {
   }
 
   // Pick the best target within range according to this.targetMode.
+  // Phase 62: when preferType is set and at least one such enemy is in range,
+  // ONLY that type competes; otherwise all enemies compete on the position
+  // mode (fallback — a preference never leaves the tower idle).
   acquireTarget(enemies, pathTotal) {
+    let pool = enemies;
+    if (this.preferType) {
+      const preferred = enemies.filter(e => e.alive && e.targetable && e.type === this.preferType
+        && dist(this.x, this.y, e.pos.x, e.pos.y) <= this.range);
+      if (preferred.length) pool = preferred;
+    }
     let best = null, bestScore = null;
-    for (const e of enemies) {
+    for (const e of pool) {
       if (!e.alive) continue;
       if (!e.targetable) continue; // wisp while phased: splash/burn still hit it
       if (dist(this.x, this.y, e.pos.x, e.pos.y) > this.range) continue;
@@ -66,6 +76,7 @@ class Tower {
       case 'last':      return -e.progress(pathTotal);
       case 'closest':   return -dist(this.x, this.y, e.pos.x, e.pos.y);
       case 'strongest': return e.hp;
+      case 'weakest':   return -e.hp;
       default:          return e.progress(pathTotal); // first
     }
   }

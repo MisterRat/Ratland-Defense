@@ -102,6 +102,54 @@ ogg tracks are not uniformly mastered, so per-track loudness varies. The
 desktop exe needs no build change. GAME_VERSION auto-bumps via
 hooks/post-commit on commit.
 
+## Phase 62 — Type-based targeting ("Prefer" dropdown) + Weakest mode
+
+**Request:** "The towers have a Target dropdown that lets the player target by
+position of enemy. It would be nice to allow the player to target by Type of
+enemy also." User rejected a single grouped 17-option dropdown as
+overwhelming; approved **two focused dropdowns**. Also requested: add
+**"Weakest"** as an additional Target mode (lowest current HP).
+
+**Decisions (user-confirmed):**
+1. UI = two dropdowns in the tower panel: **Target:** (position mode, now 5
+   options incl. Weakest) + **Prefer:** (Any + only the types ACTIVE on the
+   current level via `levelActiveEnemies()` — short list per level).
+2. Semantics: a preferred type in range is the ONLY candidate pool; when none
+   is in range the tower FALLS BACK to the position mode among all enemies —
+   a preference never leaves the tower idle. "Any" = no preference (legacy
+   behavior).
+
+**Implementation:**
+- `js/config.js`: `TARGET_MODES.weakest` ('Weakest' — lowest current HP).
+- `js/tower.js`: `Tower.preferType` field (default null); `acquireTarget()`
+  filters the candidate pool to the preferred type when at least one such
+  enemy is alive + targetable + in range, else uses the full list;
+  `scoreFor()` gains `case 'weakest': return -e.hp`.
+- `js/ui.js`: tower panel (non-mortar branch) gains a `.prefer-row` with the
+  Prefer dropdown — options = Any + active types (+ the stored preference if
+  it names an inactive type, so the panel stays truthful); value set after
+  options exist (same no-op rule as the Target select); change →
+  `handlers.onPreferType(tower, value || null)`. Phase 62 refactor: bottom-bar
+  rendering (`syncWavePreview`/`renderStatsBar`/`syncTotalStats` + their keys)
+  moved to `js/ui_bottombar.js` (new `BottomBar` class, ~120 lines); ui.js
+  keeps thin delegating methods so main.js's per-frame calls are unchanged
+  (ui.js was at 533 lines — over the 500-line limit).
+- `js/main.js`: `handlers.onPreferType(tower, type)` — validates against
+  `ENEMY_TYPES`, stores null for Any, message names the fallback mode.
+- `index.html`: loads `js/ui_bottombar.js` before `js/ui.js`.
+- All six smoke bundles that load ui.js now include ui_bottombar.js.
+
+**Tests:**
+- `tests/smoke_targeting.mjs`: weakest picks the lowest-HP enemy; preferType
+  picks the preferred type when in range, falls back to the position mode
+  when none is in range, and skips a dead preferred enemy (pool empties →
+  full-list fallback).
+- `tests/smoke_ui.mjs`: Prefer dropdown options on L1 = ["", "normal", "boss"]
+  (Any + level-active types only), defaults to Any, change fires the handler
+  with the type key, re-render keeps the stored selection, "Any" passes null,
+  and a stale preference for an inactive type stays selectable.
+- Full regression: 45/45 smoke tests pass.
+
 ## Phase 61 — New song per level (addendum to Phase 60)
 
 **Request:** "Can we make the music change which song it is playing with each
