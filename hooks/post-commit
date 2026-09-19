@@ -14,7 +14,9 @@ if [ -n "$DSH_VERSION_BUMP" ]; then exit 0; fi   # re-entry guard: the amend bel
 [ -f js/config.js ] || exit 0
 
 # A commit that already changed config.js set the version on purpose — skip.
-git diff --quiet HEAD~1 HEAD -- js/config.js 2>/dev/null && exit 0
+# (diff --quiet exits 0 when UNCHANGED, so || is the correct branch: config
+# changed or first commit (no HEAD~1) → skip; unchanged → fall through and bump.)
+git diff --quiet HEAD~1 HEAD -- js/config.js 2>/dev/null || exit 0
 
 cur=$(sed -n "s/^const GAME_VERSION = '\([0-9][0-9]*\.[0-9][0-9]*\)';.*/\1/p" js/config.js)
 case "$cur" in
