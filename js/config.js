@@ -4,7 +4,7 @@
 // the MINOR number is bumped automatically by .git/hooks/post-commit after
 // every commit; the MAJOR number is bumped manually (by the user) for big
 // releases. Format: "MAJOR.MINOR".
-const GAME_VERSION = '1.11';
+const GAME_VERSION = '1.12';
 
 const GRID = { cols: 28, rows: 16, cell: 50 };
 const CANVAS_W = GRID.cols * GRID.cell; // 1400
