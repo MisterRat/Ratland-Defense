@@ -350,3 +350,36 @@ is bumped manually by the user on request.
 
 **Status:** done — 44/44 smoke tests pass; hook verified live on the phase's
 own commit (1.0 → 1.1, amended). FILE_SUMMARY updated.
+
+## Phase 57 — Support towers immune to friendly fire
+
+**Request:** Frost and Warden are support towers — their job is to stand next
+to combat (slow / +25% aura), so being killed by stray shells from their own
+defense line is bad design. Make them immune to friendly fire.
+
+**Design decisions:**
+- Single source of truth: `Tower.immuneToFriendlyFire` getter in tower.js —
+  `type === 'frost' || type === 'warden'`. Adding a future support tower is a
+  one-line change there; no per-weapon special cases.
+- All three friendly-fire paths honor it (the complete set from Phase 54):
+  * homing `Projectile` — shell passes through, enemy still takes full impact;
+  * `PiercingShot` (railgun) — slug skips the tower, so no halving either;
+  * `CruiserMissile` — missile locks on through it.
+- Immunity is total: immune towers are never candidates in the hit test, so a
+  shell that would have stopped on a Frost now keeps flying (and can still hit
+  a non-immune tower behind it). Mortar was already exempt (Phase 54).
+- Tests: `tests/smoke_tower_hp.mjs` grows checks 8 & 9 — test 4's geometry with
+  a Frost blocker (shell must land on the enemy for full damage, Frost hp
+  untouched) and test 6's geometry with a Warden blocker (slug must hit the
+  tank for full ×1.25 aura damage, not halved to 43.75 — the Warden buff is
+  still active while immune).
+
+**Status:** done — smoke_tower_hp 9/9, full smoke suite green, balance_sim
+matrix: all runs terminated + deterministic, easy floor holds. FILE_SUMMARY
+updated.
+
+Addendum: the existing `stats.towersDestroyed` counter (Phase 54) is now a
+VISIBLE stat — `towersDestroyed` joined `TOTAL_STAT_FIELDS` (folds into the
+all-time store at level end like the others) and both bottom-bar readouts show
+a "💥 N lost" chip (per-level Stats bar + All-time bar, both value-keyed).
+No new counter, no rename — display only.
