@@ -184,14 +184,15 @@ class Renderer {
   drawTower(ctx, t, selected) {
     const def = TOWER_TYPES[t.type];
     const r = GRID.cell * 0.36;
-    // Base plate
-    ctx.fillStyle = '#151a21';
-    ctx.beginPath();
-    ctx.arc(t.x, t.y, r + 4, 0, Math.PI * 2);
-    ctx.fill();
+    // No base plate: sprites carry their own look (Phase 58 — the dark disc
+    // behind transparent PNGs read as a foreign background; the ground/pond
+    // shows through the sprite's alpha instead).
+    // Selection ring (stroke only — no fill).
     if (selected) {
       ctx.strokeStyle = '#ffd76a';
       ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, r + 4, 0, Math.PI * 2);
       ctx.stroke();
     }
     // Body: sprite if loaded, else procedural circle fallback.
