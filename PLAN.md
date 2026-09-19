@@ -56,8 +56,8 @@ Mid-run addition: a button to silence sound effects WITHOUT silencing music.
   `{name, src}`) + `BOSS_MUSIC_SRC` (`'assets/music/boss.ogg'`).
 - `js/music.js` (REWRITTEN, ~150 lines): file-based engine. Deleted: `padNote`,
   `padChord`, `leadTone`, `riser`, `scheduleStep`, the lookahead scheduler.
-  Kept: `MUSIC_LEVEL` as the single volume knob (set to 0.5 — real files are
-  louder than the old synth; retune after the user hears it). `start()` is
+  Kept: `MUSIC_LEVEL` as the single volume knob (user-tuned to 0.15 — real files are
+  much louder than the old synth). `start()` is
   headless-safe (`typeof Audio === 'undefined'` → false); makes the picked
   song's element (`loop = true`, `volume = MUSIC_LEVEL`) and plays it (play()
   Promise refusals swallowed). `stop()` pauses both elements, clears their
@@ -97,9 +97,10 @@ Mid-run addition: a button to silence sound effects WITHOUT silencing music.
   switches to the boss file then resumes the same normal element.
 - Full regression: all 45 smoke tests pass.
 
-**Notes:** `MUSIC_LEVEL = 0.5` is the single volume knob — ask the user how it
-sounds after first listen and retune if needed. The desktop exe needs no build
-change. GAME_VERSION auto-bumps via hooks/post-commit on commit.
+**Notes:** `MUSIC_LEVEL = 0.15` (user-tuned) is the single volume knob — the
+ogg tracks are not uniformly mastered, so per-track loudness varies. The
+desktop exe needs no build change. GAME_VERSION auto-bumps via
+hooks/post-commit on commit.
 
 ## Phase 61 — New song per level (addendum to Phase 60)
 

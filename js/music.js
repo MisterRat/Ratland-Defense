@@ -28,7 +28,7 @@
 
 // Master music volume (0..1) for both elements. Real files are much louder
 // than the old synth — if it's too loud/quiet, adjust THIS number first.
-const MUSIC_LEVEL = 0.5;
+const MUSIC_LEVEL = 0.15;
 
 const Music = {
   playing: false,      // true from start() until stop()
