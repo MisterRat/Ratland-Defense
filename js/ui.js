@@ -299,7 +299,7 @@ class UI {
   renderStatsBar(box) {
     const s = this.game.stats;
     const dmg = Math.round(s.damageDealt);
-    const key = `stats:${dmg}|${s.towersBuilt}|${s.towersSold}|${s.leaked}|${s.dotKills}|${s.directKills}`;
+    const key = `stats:${dmg}|${s.towersBuilt}|${s.towersSold}|${s.towersDestroyed}|${s.leaked}|${s.dotKills}|${s.directKills}`;
     if (key === this._wpKey) return;
     this._wpKey = key;
     box.innerHTML = '';
@@ -311,6 +311,7 @@ class UI {
       [`⚔ ${dmg.toLocaleString('en-US')} dmg`, ''],
       [`🏗 ${s.towersBuilt} built`, ''],
       [`💸 ${s.towersSold} sold`, ''],
+      [`💥 ${s.towersDestroyed} lost`, ''],
       [`💀 ${s.leaked} leaked`, ''],
       [`🔥 ${s.dotKills} DoT kills`, ''],
       [`⚡ ${s.directKills} direct kills`, ''],
@@ -332,7 +333,7 @@ class UI {
     const box = this.el.wpTotal;
     if (!box) return;
     const t = getTotalStats();
-    const key = `total:${t.damageDealt}|${t.kills}|${t.towersBuilt}|${t.towersSold}` +
+    const key = `total:${t.damageDealt}|${t.kills}|${t.towersBuilt}|${t.towersSold}|${t.towersDestroyed}` +
       `|${t.leaked}|${t.dotKills}|${t.directKills}|${t.moneyEarned}|${t.levelsWon}`;
     if (key === this._wpTotalKey) return;
     this._wpTotalKey = key;
@@ -347,6 +348,7 @@ class UI {
       [`💀 ${t.kills} kills`, ''],
       [`🏗 ${t.towersBuilt} built`, ''],
       [`💸 ${t.towersSold} sold`, ''],
+      [`💥 ${t.towersDestroyed} lost`, ''],
       [`💦 ${t.leaked} leaked`, ''],
     ];
     for (const [text] of items) {

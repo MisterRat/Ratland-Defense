@@ -12,7 +12,7 @@ const TOTAL_STATS_KEY = 'towerDefenseTotalStats.v1';
 // never grow junk keys or non-numeric values.
 const TOTAL_STAT_FIELDS = [
   'kills', 'moneyEarned', 'wavesSurvived', 'damageDealt',
-  'towersBuilt', 'towersSold', 'leaked', 'dotKills', 'directKills', 'levelsWon',
+  'towersBuilt', 'towersSold', 'towersDestroyed', 'leaked', 'dotKills', 'directKills', 'levelsWon',
 ];
 
 function emptyTotalStats() {
