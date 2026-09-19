@@ -54,6 +54,7 @@ class CruiserMissile {
       let hitTower = null, bestAlong = Infinity;
       for (const tw of game.towers.values()) {
         if (!tw.alive || tw.id === this.sourceId) continue; // never self-hit
+        if (tw.immuneToFriendlyFire) continue; // Phase 57: support towers
         if (segDist(tw.x, tw.y, this.x, this.y, nx, ny) > TOWER_HIT_RADIUS) continue;
         const along = ((tw.x - this.x) * dx + (tw.y - this.y) * dy) / d;
         if (along < bestAlong) { bestAlong = along; hitTower = tw; }

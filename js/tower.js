@@ -34,6 +34,10 @@ class Tower {
   // tower harder to destroy (and upgradeTower heals it by the delta).
   get maxHp() { return Math.round(this.invested * TOWER_HP_PER_COST); }
 
+  // Phase 57: support towers are immune to friendly fire — their whole job is
+  // to stand near combat, so shells/slugs/missiles pass straight through.
+  get immuneToFriendlyFire() { return this.type === 'frost' || this.type === 'warden'; }
+
   upgradeCost() {
     if (this.level >= UPGRADE_COST_FACTOR.length + 1) return null;
     return Math.round(this.def.cost * UPGRADE_COST_FACTOR[this.level - 1]);

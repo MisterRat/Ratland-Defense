@@ -57,6 +57,7 @@ class Projectile {
       let hitTower = null, bestAlong = Infinity;
       for (const t of game.towers.values()) {
         if (!t.alive || t.id === this.sourceId) continue; // never self-hit
+        if (t.immuneToFriendlyFire) continue; // Phase 57: support towers
         if (segDist(t.x, t.y, this.x, this.y, nx, ny) > TOWER_HIT_RADIUS) continue;
         const along = ((t.x - this.x) * dx + (t.y - this.y) * dy) / d;
         if (along < bestAlong) { bestAlong = along; hitTower = t; }
@@ -216,6 +217,7 @@ class PiercingShot {
       const freshTowers = [];
       for (const t of game.towers.values()) {
         if (!t.alive || t.id === this.sourceId || this.hitTowerIds.has(t.id)) continue;
+        if (t.immuneToFriendlyFire) continue; // Phase 57: support towers
         if (segDist(t.x, t.y, px, py, this.x, this.y) <= TOWER_HIT_RADIUS) freshTowers.push(t);
       }
       freshTowers.sort((a, b) =>
