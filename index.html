@@ -49,10 +49,9 @@
      is selected), so selecting/deselecting a tower never changes the page's
      layout size and fit.js never rescales the canvas. Content is one
      horizontal line: head block, dropdowns, Upgrade/Sell. */
-  #towerPanel { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;
-    background: #232a35; border: 1px solid #39424f; border-radius: 6px;
-    padding: 4px 8px; font-size: 12px; width: 100%; box-sizing: border-box;
-    height: 36px; }
+  #towerPanel { display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+    flex-wrap: nowrap; background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; width: 100%; box-sizing: border-box; height: 36px; }
   #towerPanel .tp-head { display: inline-flex; gap: 8px; align-items: center;
     font-size: 13px; white-space: nowrap; }
   #towerPanel .tp-head .desc { margin-top: 0; }
@@ -61,7 +60,7 @@
      over the play area, instead of down over the stats bar. */
   .dd { position: relative; display: inline-flex; }
   .dd-btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .dd-list { position: absolute; bottom: calc(100% + 4px); left: 0; min-width: 100%;
+  .dd-list { position: absolute; bottom: calc(100% + 4px); right: 0; min-width: 100%;
     background: #1d232c; border: 1px solid #39424f; border-radius: 6px; display: none;
     z-index: 50; max-height: 240px; overflow-y: auto; padding: 2px 0; }
   .dd.open .dd-list { display: block; }

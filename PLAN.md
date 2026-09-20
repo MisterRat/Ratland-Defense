@@ -247,6 +247,9 @@ area.
 - `#msg` constrained to the 1400px play-area width (was full window width).
 - New `.dd`/`.dd-btn`/`.dd-list` CSS: the list is absolutely positioned
   `bottom: calc(100% + 4px)` above its button (z-index 50).
+- Follow-up: panel content right-aligned (`justify-content: flex-end`) and
+  the dropdown list right-anchored (`right: 0`, grows leftward) so it stays
+  over the play area.
 
 **Code:**
 - `js/ui_dropdown.js` (NEW, 120 lines): `Dropdown` class — custom dropdown that
