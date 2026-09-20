@@ -267,3 +267,61 @@ area.
 `selectOption(...)`, `preferDd.options`) + placeholder-after-deselect check;
 `smoke_towerrow.mjs` (NEW) asserts the static structure of index.html.
 Full suite 46/46 pass.
+
+## Phase 65 — Horizontal fit: columns must not run off screen
+
+**Request:** "When I horizontally resize the browser window the left and right
+columns are allowed to go off screen. That should not happen, the whole thing
+should scale down like it does when I vertically resize." Follow-up: "the center
+column will resize once the left and right are off screen" — i.e. the canvas
+stays full-size while the side columns clip, exactly as observed.
+
+**Root cause (confirmed with a real-browser probe, Playwright Chromium):**
+`fit.js` computes scale from `body.scrollWidth`, but on this page the body is a
+centered flex column (`align-items: center`) whose content is WIDER than the
+viewport. Overflow to the LEFT of the viewport edge does NOT grow
+`scrollWidth` (only rightward overflow does), so the width ratio comes out too
+big — or 1 — and fit.js scales only for the HEIGHT. The centered layout then
+sticks out symmetrically on both sides: at a 1000px-wide window the legend
+starts at x≈-146 and the shop ends ≈146px past the right edge, while the canvas
+still renders full-size. Vertical resizes work because `scrollHeight` is
+overflow-direction-independent.
+
+**Design (final):** measure the TRUE layout width as the WIDEST CHILD'S
+`offsetWidth`, with `scrollWidth` kept as a floor. Two earlier candidates were
+ruled out by real-browser probing:
+1. `scrollWidth` alone — blind to leftward overflow (the bug).
+2. `max(scrollWidth, scrollLeft + clientWidth)` — WRONG MODEL: the body itself
+   stays viewport-wide (a block box); its centered children overflow it
+   symmetrically, so `clientWidth` is just the viewport width and this term
+   never exceeds `scrollWidth`. A smoke stub that assumed `clientWidth` tracks
+   the widest child passed while the real browser stayed broken.
+`offsetWidth` reports the untransformed layout size (immune to the CSS
+transform fit.js applies — no feedback loop) and is independent of where the
+overflow sits. Scale = `min(1, vw/w, vh/scrollHeight)` as before; everything
+else (transform on body, top-center origin, resize + ResizeObserver re-fit,
+headless guards) is unchanged. The fix is in fit.js only — no CSS or layout
+changes, so the wide-window layout (scale 1) is byte-identical to before.
+
+**Implementation:**
+- `js/fit.js`: `fit()` computes `w` = max of `body.scrollWidth` and each
+  `body.children[i].offsetWidth` (each term null-guarded for vm stubs; bails if
+  nothing measurable) and uses it in the scale; comment updated to explain the
+  centered-overflow case and why clientWidth doesn't work.
+
+**Tests:**
+- `tests/smoke_fit.mjs`: new section 6 — a CENTERED-overflow stub modeled on
+  the REAL browser: body `clientWidth` = viewport width, `scrollWidth` =
+  rightward extent only `(vw+NAT_W)/2`, and a child with `offsetWidth = NAT_W`
+  (the play row) appended to `body.children`. Asserts the scale is width-bound
+  (`vw/NAT_W`) — distinct from both the scrollWidth-bound (0.703) and
+  height-bound (0.889) values the bug produced. The same child is appended in
+  every sandbox (it models the real `#wrap`), so sections 1–5 pass unchanged.
+- Real-browser verification: Playwright probe at 1920×1080 / 1280×720 /
+  1000×800 / 900×700 — all four viewports show the legend and shop fully inside
+  the viewport (narrow: both margins exactly 0px, scale width-bound
+  1000/1822 ≈ 0.549), canvas scaled with them, no horizontal overflow; wide
+  window unchanged (no transform).
+
+**Files:** `js/fit.js` (measurement change), `tests/smoke_fit.mjs` (new
+section + child in stub). No other js/ or HTML changes.
