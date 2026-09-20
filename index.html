@@ -17,9 +17,11 @@
   #wrap { display: flex; gap: 10px; }
   /* align-self:flex-start keeps the canvas at its intrinsic 1400×800 — the
      flex row's default (align-items:stretch) would otherwise stretch the
-     canvas TALLER whenever #towerPanel (or the shop) grows the row's height,
-     so the playfield visibly "grows" while a tower is selected. The row may
-     still grow; the canvas stays pinned to its top edge, unmoved and unscaled. */
+     canvas TALLER whenever the shop grows the row's height, so the playfield
+     visibly "grows". The row may still grow; the canvas stays pinned to its
+     top edge, unmoved and unscaled. Phase 64: #towerPanel moved OUT of this
+     row into a constant-height bar below the message, so selecting a tower
+     no longer changes the page's layout size (no fit.js rescale). */
   canvas { background: #1d232c; border: 1px solid #2c3440; image-rendering: pixelated; align-self: flex-start; }
   #legend { width: 190px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
   .legend-item { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
@@ -35,22 +37,40 @@
      make the sidebar ones block-level so every box fills the column width,
      matching the uniform enemy legend boxes on the left. Scoped here because
      .tower-btn is also used in the top HUD bar, where buttons stay inline. */
-  #shop .shop-item, #towerPanel .tower-btn { display: block; width: 100%; box-sizing: border-box; }
+  #shop .shop-item { display: block; width: 100%; box-sizing: border-box; }
   .shop-item:hover, .tower-btn:hover { background: #2c3543; }
   .shop-item.selected { outline: 2px solid #ffd76a; }
   .shop-item:disabled, .tower-btn:disabled { opacity: .45; cursor: default; }
   .name { font-weight: 600; }
   .cost { color: #ffd76a; float: right; }
   .desc { color: #8b97a7; font-size: 11px; margin-top: 2px; }
-  #towerPanel { background: #232a35; border: 1px solid #39424f; border-radius: 6px;
-    padding: 8px; display: none; }
-  #towerPanel > div, #towerPanel > button { margin-bottom: 6px; }
-  /* .prefer-row (Phase 62) shares the Target row's layout: label left,
-     dropdown fills the rest — without this the block-level select wraps to
-     its own line and the panel grows a row. */
-  .target-row, .prefer-row { display: flex; gap: 6px; align-items: center; }
-  .target-row select, .prefer-row select { flex: 1; cursor: pointer; }
-  #msg { font-size: 14px; color: #8b97a7; min-height: 18px; }
+  /* Phase 64: the tower-detail bar — a CONSTANT-HEIGHT full-width row between
+     the message and the stats bar. Always visible (placeholder when nothing
+     is selected), so selecting/deselecting a tower never changes the page's
+     layout size and fit.js never rescales the canvas. Content is one
+     horizontal line: head block, dropdowns, Upgrade/Sell. */
+  #towerPanel { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;
+    background: #232a35; border: 1px solid #39424f; border-radius: 6px;
+    padding: 4px 8px; font-size: 12px; width: 100%; box-sizing: border-box;
+    height: 36px; }
+  #towerPanel .tp-head { display: inline-flex; gap: 8px; align-items: center;
+    font-size: 13px; white-space: nowrap; }
+  #towerPanel .tp-head .desc { margin-top: 0; }
+  #towerPanel .tp-placeholder { color: #8b97a7; font-size: 13px; }
+  /* Phase 64: custom dropdown (js/ui_dropdown.js) — the list opens UPWARD,
+     over the play area, instead of down over the stats bar. */
+  .dd { position: relative; display: inline-flex; }
+  .dd-btn { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .dd-list { position: absolute; bottom: calc(100% + 4px); left: 0; min-width: 100%;
+    background: #1d232c; border: 1px solid #39424f; border-radius: 6px; display: none;
+    z-index: 50; max-height: 240px; overflow-y: auto; padding: 2px 0; }
+  .dd.open .dd-list { display: block; }
+  .dd-opt { display: block; width: 100%; text-align: left; padding: 4px 10px;
+    cursor: pointer; white-space: nowrap; font-size: 12px; background: none; border: none; color: #dfe6ee; }
+  .dd-opt:hover { background: #2a3342; }
+  .dd-opt.sel { color: #ffd76a; }
+  #msg { font-size: 14px; color: #8b97a7; min-height: 18px;
+    width: 1400px; box-sizing: border-box; } /* Phase 64: play-area width only */
   /* Bottom bar: a full-width bar across the bottom, below the message line.
      Phase 35: ALWAYS visible — it shows the next-wave enemy composition chips
      (swatch + count) while between waves so the player can plan placement,
@@ -113,10 +133,12 @@
     <canvas id="game" width="1400" height="800"></canvas>
     <div id="side">
       <div id="shop"></div>
-      <div id="towerPanel"></div>
     </div>
   </div>
   <div id="msg">Pick a tower, click a grass tile to build, then press ▶ Resume to start.</div>
+  <!-- Phase 64: selected-tower detail — constant-height full-width row above
+       the stats bar; its dropdowns open upward over the play area. -->
+  <div id="towerPanel"></div>
   <!-- Phase 52: two-zone bottom bar — left = wave preview / this level's stats,
        right = all-time (of all time) stats + reset button. -->
   <div id="wavePreview"><div id="wpLeft"></div><div id="wpTotal"></div>
@@ -160,6 +182,8 @@
   <!-- Phase 62: bottom-bar rendering (BottomBar) — loaded before ui.js, which
        keeps thin delegating methods for main.js's per-frame calls. -->
   <script src="js/ui_bottombar.js"></script>
+  <!-- Phase 64: custom upward-opening dropdown (used by the tower panel). -->
+  <script src="js/ui_dropdown.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/tutorial.js"></script>
   <script src="js/input.js"></script>

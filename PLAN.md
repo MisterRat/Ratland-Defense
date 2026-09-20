@@ -179,3 +179,88 @@ and when it leaves, the CURRENT (already-swapped-on-entry) track resumes.
 - `tests/smoke_music.mjs` section G: repick while playing swaps to a different
   song (new element, old released), 13 consecutive picks never repeat, no-op
   while stopped, no-op while in boss mode. Full regression: 45/45 pass.
+
+## Phase 63 — Balance pass (enemy × tower audit across difficulties)
+
+**Request:** "Do a balance pass. I don't know of any issues specifically but
+check the possible enemy and tower combinations at different difficulties. We
+made a lot of changes, your simulator may need to be updated."
+
+**Sim was stale in one concrete way:** the bundle lacked `js/terrain.js`, so
+`game.ponds === null` and the Cruiser (waterOnly) could never be placed — its
+dedicated placement branch was dead code in every prior run. Fixed by adding
+terrain.js to the bundle (index.html order: after config.js, before levels.js).
+
+**Strategy improvements (reference player is "competent but not optimal"):**
+- Cruiser picks the pond cell closest to the path centroid (range 700 ≈ half
+  the map → central placement covers all lanes) instead of "first free pond".
+- `pickCell` gained a minScore gate: combat towers must add ≥1 new coverage
+  sample, wardens need ≥1 neighbor in aura range. Previously the strategy
+  bought redundant towers until money ran out and starved on upgrades — this
+  caused the Serpentine@hard anomaly (4 basic guns, 15 kills).
+- Stored levels (`levels/Free_For_All.json`, `riverbend.json`) are now
+  registered and played through the same runner.
+- Per-run progress logging (a mid-matrix segfault previously left no output).
+
+**Result (9 levels × 4 difficulties, deterministic):**
+- easy 6/6 built-in wins (playability floor holds)
+- normal 6/6 built-in wins
+- hard 5/6 (Serpentine loses at wave 8: shortest path + $100 start + highest
+  HP scaling — a strategy weakness, not a balance bug)
+- nightmare 1/6 built-in (Crossroads only) — by design
+- Free For All (explicit waves, $1000 start): won at ALL four difficulties —
+  the $1000 start money makes it a showcase level, consistent with its intent.
+- Riverbend (6 waves, no explicit difficulty override → normal row): easy win
+  everywhere; it's a short casual level.
+
+**Enemy × tower audit:** every enemy type has ≥1 viable counter available at
+its unlock level. Boss (Colossus) resists 10 towers — only mortar and reaper
+deal full damage; intentional design that forces build decisions. Wisp is
+countered by frost (pauses phase cycle), tesla (hits phased), splash, and
+burn. Bulwark regen (6/s) is outpaced by flame burn (14 dps) and venom poison
+(30 dps cap). No uncounterable enemy exists.
+
+**Tower economy:** no tower is strictly dominated. Tesla is the DPS king
+(53.9 solo), cannon the group workhorse, flame/venom the DoT/Bulwark
+specialists, mortar/cruiser the boss counters, frost the utility slow.
+
+**Verdict: no game-code stat changes recommended.** Balance is healthy; the
+difficulty curve matches intent.
+
+**Files:** `tests/balance_sim.mjs` updated (282 lines), `tests/balance_report.md`
+new (full report). No js/ changes. Full smoke suite 46/46 pass.
+
+## Phase 64 — UI redesign: constant-height tower-detail row + upward dropdowns
+
+**Request:** the selected-tower detail box was too low, its dynamic height pushed
+the message/stats rows down and made the canvas rescale on every selection; the
+message box should span only the play area, and the tower detail should become a
+full-width row above the stats bar with dropdowns that open UPWARD over the play
+area.
+
+**Layout (index.html):**
+- `#towerPanel` moved OUT of `#side` (right column now holds only `#shop`) into
+  its own full-width row between `#msg` and `#wavePreview`. It is a CONSTANT
+  HEIGHT (36px), always-visible flex row — deselecting renders a placeholder
+  span instead of hiding the bar, so body scrollHeight never changes → no
+  fit.js rescale. No fit.js changes.
+- `#msg` constrained to the 1400px play-area width (was full window width).
+- New `.dd`/`.dd-btn`/`.dd-list` CSS: the list is absolutely positioned
+  `bottom: calc(100% + 4px)` above its button (z-index 50).
+
+**Code:**
+- `js/ui_dropdown.js` (NEW, 120 lines): `Dropdown` class — custom dropdown that
+  opens upward (native `<select>` popups can't be forced up). One open list at a
+  time; outside-mousedown + Escape close it; document listeners attach only
+  while open. Headless-safe guards for the smoke-test DOM stubs.
+- `js/ui.js`: `renderTowerPanel` rewritten — placeholder when no tower; inline
+  header (name/Lv/stats); mortar → custom Ammo dropdown + retarget button;
+  others → custom Target + Prefer dropdowns (live refs on
+  `this.ammoDd`/`targetDd`/`preferDd`). No native selects remain in the panel.
+- `js/input.js`: Space-pause skipped while the event target is inside
+  `#towerPanel` (a focused dropdown button must not also pause).
+
+**Tests:** `smoke_ui.mjs` updated to the Dropdown API (`targetDd.value`,
+`selectOption(...)`, `preferDd.options`) + placeholder-after-deselect check;
+`smoke_towerrow.mjs` (NEW) asserts the static structure of index.html.
+Full suite 46/46 pass.

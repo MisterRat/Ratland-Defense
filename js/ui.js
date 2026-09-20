@@ -12,6 +12,10 @@ class UI {
     this.cache = {};
     this.bottomBar = new BottomBar(this); // Phase 62: bottom-bar rendering (ui_bottombar.js)
     this.upgradeBtn = null;   // live reference so affordability can refresh each frame
+    // Phase 64: live refs to the panel's custom dropdowns (null when absent).
+    this.ammoDd = null;
+    this.targetDd = null;
+    this.preferDd = null;
     this.el = {
       money: document.getElementById('money'),
       lives: document.getElementById('lives'),
@@ -162,11 +166,11 @@ class UI {
   bindMuteButton() {
     const btn = this.el.muteBtn;
     if (!btn) return;
-    btn.textContent = SFX.muted ? '🔇 Muted' : '🔊 Sound';
+    btn.textContent = SFX.muted ? '🔇 Muted' : '🔊 SFX';
     btn.addEventListener('click', () => {
       SFX.ensure(); // user gesture: safe to create/resume the context now
       const muted = SFX.toggleMute();
-      btn.textContent = muted ? '🔇 Muted' : '🔊 Sound';
+      btn.textContent = muted ? '🔇 Muted' : '🔊 SFX';
     });
   }
 
@@ -317,11 +321,26 @@ class UI {
     return `L${n}: dmg ${Math.round(def.damage * ds)} · rng ${Math.round(def.range * dr)} · ${(def.fireRate * df).toFixed(1)}/s`;
   }
 
-  // Show/hide the panel for a selected tower.
+  // Phase 64: the tower-detail row is a CONSTANT-HEIGHT full-width bar (CSS in
+  // index.html) that always stays visible — no selection shows a placeholder,
+  // so selecting/deselecting never changes the page's layout size. The
+  // dropdowns are custom Dropdown instances (js/ui_dropdown.js) that open
+  // UPWARD over the play area; live refs are kept on this.ammoDd/targetDd/
+  // preferDd (null when not applicable) for tests and future syncs.
   renderTowerPanel(tower) {
     const panel = this.el.towerPanel;
-    if (!tower) { panel.style.display = 'none'; this.upgradeBtn = null; return; }
-    panel.style.display = 'block';
+    this.ammoDd = null;
+    this.targetDd = null;
+    this.preferDd = null;
+    if (!tower) {
+      panel.innerHTML = '';
+      const ph = document.createElement('span');
+      ph.className = 'tp-placeholder';
+      ph.textContent = 'Click a tower to inspect it.';
+      panel.appendChild(ph);
+      this.upgradeBtn = null;
+      return;
+    }
     const def = TOWER_TYPES[tower.type];
     const upCost = tower.upgradeCost();
     // Non-combat towers (Warden aura, Mint income) show their special stats.
@@ -339,31 +358,16 @@ class UI {
     }
     panel.innerHTML = '';
     const head = document.createElement('div');
+    head.className = 'tp-head';
     head.innerHTML = `<span class="name" style="color:${def.color}">${def.name}</span>
-      <span class="cost">Lv ${tower.level}</span><div class="desc">${stats}</div>`;
+      <span class="cost">Lv ${tower.level}</span><span class="desc">${stats}</span>`;
     panel.appendChild(head);
 
     if (def.ammoTypes) {
       // Mortar: an Ammo dropdown (payload flavor) instead of Target modes.
-      const ammoRow = document.createElement('div');
-      ammoRow.className = 'target-row';
-      const alabel = document.createElement('span');
-      alabel.className = 'name';
-      alabel.textContent = 'Ammo:';
-      const asel = document.createElement('select');
-      asel.className = 'tower-btn';
-      for (const a of def.ammoTypes) {
-        const opt = document.createElement('option');
-        opt.value = a;
-        opt.textContent = TOWER_TYPES[a].name;
-        asel.appendChild(opt);
-      }
-      asel.value = tower.ammo; // set after the options exist (see onTargetMode note)
-      asel.addEventListener('change', () => this.handlers.onAmmo(tower, asel.value));
-      ammoRow.appendChild(alabel);
-      ammoRow.appendChild(asel);
-      panel.appendChild(ammoRow);
-
+      this.ammoDd = new Dropdown(panel, 'Ammo',
+        def.ammoTypes.map(a => ({ value: a, text: TOWER_TYPES[a].name })),
+        tower.ammo, v => this.handlers.onAmmo(tower, v));
       const retarget = document.createElement('button');
       retarget.className = 'tower-btn';
       retarget.textContent = tower.targetPoint ? 'Change Target' : 'Set Target (click any tile)';
@@ -371,56 +375,22 @@ class UI {
       panel.appendChild(retarget);
     } else {
       // Targeting mode selector.
-      const targetRow = document.createElement('div');
-      targetRow.className = 'target-row';
-      const label = document.createElement('span');
-      label.className = 'name';
-      label.textContent = 'Target:';
-      const sel = document.createElement('select');
-      sel.className = 'tower-btn';
-      for (const [mode, labelName] of Object.entries(TARGET_MODES)) {
-        const opt = document.createElement('option');
-        opt.value = mode;
-        opt.textContent = labelName;
-        sel.appendChild(opt);
-      }
-      // Set AFTER the options exist — assigning .value before the matching
-      // option is in the select is a no-op, so the dropdown would always show
-      // the first entry regardless of the tower's actual mode.
-      sel.value = tower.targetMode;
-      sel.addEventListener('change', () => this.handlers.onTargetMode(tower, sel.value));
-      targetRow.appendChild(label);
-      targetRow.appendChild(sel);
-      panel.appendChild(targetRow);
+      this.targetDd = new Dropdown(panel, 'Target',
+        Object.entries(TARGET_MODES).map(([mode, labelName]) => ({ value: mode, text: labelName })),
+        tower.targetMode, v => this.handlers.onTargetMode(tower, v));
 
       // Phase 62: Prefer dropdown — a type to aim at first (fallback to the
       // position mode when none is in range). Options = types ACTIVE on this
       // level, so the list stays short. The tower's stored preference may name
       // a type inactive here; keep it selectable so the panel stays truthful.
-      const preferRow = document.createElement('div');
-      preferRow.className = 'prefer-row';
-      const plabel = document.createElement('span');
-      plabel.className = 'name';
-      plabel.textContent = 'Prefer:';
-      const psel = document.createElement('select');
-      psel.className = 'tower-btn';
-      const anyOpt = document.createElement('option');
-      anyOpt.value = '';
-      anyOpt.textContent = 'Any';
-      psel.appendChild(anyOpt);
+      const preferOpts = [{ value: '', text: 'Any' }];
       const active = levelActiveEnemies(this.game.levelIndex);
-      for (const [key, def] of Object.entries(ENEMY_TYPES)) {
+      for (const [key, edef] of Object.entries(ENEMY_TYPES)) {
         if (!active.has(key) && tower.preferType !== key) continue;
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = def.name;
-        psel.appendChild(opt);
+        preferOpts.push({ value: key, text: edef.name });
       }
-      psel.value = tower.preferType || ''; // after options exist (same no-op rule)
-      psel.addEventListener('change', () => this.handlers.onPreferType(tower, psel.value || null));
-      preferRow.appendChild(plabel);
-      preferRow.appendChild(psel);
-      panel.appendChild(preferRow);
+      this.preferDd = new Dropdown(panel, 'Prefer', preferOpts,
+        tower.preferType || '', v => this.handlers.onPreferType(tower, v || null));
     }
 
     if (upCost != null) {
@@ -435,7 +405,7 @@ class UI {
       this.upgradeBtn = up;
     } else {
       this.upgradeBtn = null;
-      const max = document.createElement('div');
+      const max = document.createElement('span');
       max.className = 'desc';
       max.textContent = 'Max level';
       panel.appendChild(max);

@@ -11,8 +11,11 @@ class Input {
     canvas.addEventListener('contextmenu', e => { e.preventDefault(); this.cancel(); });
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape') this.cancel();
-      // Space toggles pause (unless the user is typing in a control).
+      // Space toggles pause (unless the user is typing in a control or
+      // operating the tower-detail row's custom dropdown buttons — Phase 64).
       else if (e.code === 'Space' && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) {
+        const inPanel = e.target.closest ? e.target.closest('#towerPanel') : null;
+        if (inPanel) return;
         e.preventDefault();
         ui.handlers.onPause();
       }
