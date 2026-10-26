@@ -1,11 +1,28 @@
-# Smoke / temporary test files live in tests/ and are not committed.
+# Ratland Defense — only files the game (or its exe build) uses are tracked.
+
+# Smoke / temporary test files
 /tests/
 
-# Desktop build output (reproducible via compile.bat on Windows).
+# Desktop build output (reproducible via compile.bat on Windows)
 *.exe
 build/
 dist/
 __pycache__/
+*.spec
 
 # Windows metadata artifacts
 *.Zone.Identifier
+Thumbs.db
+desktop.ini
+
+# Resources (source art, music masters, old builds)
+misc/
+
+# Development docs (plans, file summary, review/audit reports)
+/PLAN*.md
+/FILE_SUMMARY.md
+/REVIEW_REPORT.md
+/SECURITY_AUDIT.md
+
+# Git hook source (the active copy lives in .git/hooks/)
+/hooks/
