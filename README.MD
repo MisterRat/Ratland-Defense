@@ -147,3 +147,7 @@ The six built-in levels, in order:
 - Cluster damage towers inside a **Warden**'s aura ring (toggle ◎ Ranges to see every tower's range at once).
 - If you keep losing, retry: each attempt adds +$50 starting money, and your tower layout knowledge is the real bonus.
 - A first-time 3-step tutorial appears on your very first load — it teaches pick / build / resume.
+
+## License
+
+Copyright (c) 2026 MisterRat. Free for noncommercial use under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0). Commercial use requires written permission. See `LICENSE`.
