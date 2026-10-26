@@ -141,7 +141,7 @@ async function lsExportAll() {
   if (!count) { document.getElementById('lsMsg').textContent = 'Nothing to export — create or import levels first.'; return; }
   const api = lsBridge();
   if (api) {
-    const ok = await api.save_file(exportCustomLevels(), 'tower-defense-levels.json');
+    const ok = await api.save_file(exportCustomLevels(), 'ratland-defense-levels.json');
     document.getElementById('lsMsg').textContent = ok
       ? `Exported ${count} level(s) — see the save dialog for where it went.`
       : 'Export cancelled.';
@@ -152,12 +152,12 @@ async function lsExportAll() {
     const url = URL.createObjectURL(new Blob([exportCustomLevels()], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'tower-defense-levels.json';
+    a.download = 'ratland-defense-levels.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-    document.getElementById('lsMsg').textContent = `Exported ${count} level(s) to tower-defense-levels.json.`;
+    document.getElementById('lsMsg').textContent = `Exported ${count} level(s) to ratland-defense-levels.json.`;
   } catch (err) {
     document.getElementById('lsMsg').textContent = 'Export failed: ' + err.message;
   }
