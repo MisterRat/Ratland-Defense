@@ -1,5 +1,14 @@
 # Ratland Defense — Player Guide
 
+**▶ Play it in your browser:** <https://github.mrrat.org/Ratland-Defense/>
+
+![Ratland Defense: a defense of Guns, Frost, Flame, Cannons and Snipers holding The Gauntlet, with a Sniper selected](screenshots/gameplay.png)
+
+| | |
+|---|---|
+| ![Every tower type on a custom nightmare map, including the pond-only Cruiser](screenshots/all-towers.png) | ![Range circles toggled on for every tower on Crossroads](screenshots/ranges.png) |
+| *Custom levels unlock the full arsenal: Tesla, Venom, Reaper, Mint, Warden, Mortar and the pond-only Cruiser.* | *◎ Ranges shows every tower's reach at once; the bar below previews the next wave.* |
+
 ## What is a Tower Defense game?
 
 In a tower defense game, enemies walk along a fixed path from a spawn point to your base. You can't move the enemies — you can only stop them by building towers on the tiles around the path. Towers shoot (or slow, burn, poison) enemies for as long as they're in range.
@@ -136,6 +145,9 @@ The six built-in levels, in order:
 
 - Use the 🗺️ dropdown to replay any unlocked level; the 🎚 dropdown sets its difficulty (the choice is remembered per level).
 - The 🎲 **Level Generator** page builds custom levels: pick a path shape, which enemies and which towers appear, difficulty and wave count. Custom levels always unlock, and they're where the level-7 towers (Tesla, Venom, Reaper, Mint, Warden, Mortar, Cruiser) live.
+
+  ![The Level Generator: four generated candidate maps, with the enemy and tower rosters on either side](screenshots/level-generator.png)
+
 - The 📦 **Stored Levels** page lists your custom levels with mini-maps; export/import them as `.json` files to share with friends or back up.
 
 ## Tips for new players
