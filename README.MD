@@ -1,6 +1,6 @@
 <div align="center">
 
-# Ratland Defense — Player Guide
+# Ratland Defense
 
 ### [Play it in your browser](https://github.mrrat.org/Ratland-Defense/)
 by [MrRat Gaming](https://github.mrrat.org/) &nbsp;·&nbsp; [Discord](https://discord.gg/FybAhsxQHZ)
