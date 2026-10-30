@@ -1,9 +1,12 @@
+<div align="center">
 
 # Ratland Defense — Player Guide
 
 **▶ Play it in your browser:** <https://github.mrrat.org/Ratland-Defense/>
 
 ![Ratland Defense: a defense of Guns, Frost, Flame, Cannons and Snipers holding The Gauntlet, with a Sniper selected](screenshots/gameplay.png)
+
+</div>
 
 | | |
 |---|---|
