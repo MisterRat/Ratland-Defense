@@ -160,6 +160,15 @@ const handlers = {
     saveSpeed(speed); // Phase 34: persist across reloads
     ui.el.speedBtn.textContent = `Speed: ${speed}x`;
   },
+  // Phase 66: ❓ Help — show the player guide (README.MD) in a modal. The game
+  // pauses while it is open; closing restores the previous pause state (a
+  // running game resumes, an already-paused one stays paused).
+  onHelp() {
+    if (typeof Help === 'undefined' || Help.isOpen) return;
+    const wasPaused = paused;
+    setPaused(true);
+    Help.open(() => { if (!wasPaused) setPaused(false); });
+  },
   onPause() {
     setPaused(!paused);
     game.setMessage(paused ? 'Paused. Click Resume to continue.' : 'Resumed.');

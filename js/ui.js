@@ -38,6 +38,7 @@ class UI {
       // level's stats, right = all-time stats + reset button.
       wpLeft: document.getElementById('wpLeft'),
       wpTotal: document.getElementById('wpTotal'),
+      helpBtn: document.getElementById('helpBtn'), // Phase 66
     };
     this.buildEnemyLegend();
     this.buildShop();
@@ -210,6 +211,8 @@ class UI {
     if (this.el.showRangesBtn) this.el.showRangesBtn.addEventListener('click', () => this.handlers.onShowRanges());
     this.el.speedBtn.addEventListener('click', () => this.handlers.onSpeed());
     this.el.pauseBtn.addEventListener('click', () => this.handlers.onPause());
+    // Phase 66: ❓ Help (bottom bar) — opens the README modal.
+    if (this.el.helpBtn && this.handlers.onHelp) this.el.helpBtn.addEventListener('click', () => this.handlers.onHelp());
     this.bindMuteButton();
     this.bindMusicButton();
     if (this.el.diffSelect) {
