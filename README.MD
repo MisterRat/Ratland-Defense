@@ -74,32 +74,19 @@ Score = `kills × 10 + lives × 50 + money earned × 1`. Your best score per lev
 
 Towers unlock as you progress through levels. The first six are available on the built-in maps; the rest (level 7+) appear on custom levels made in the Level Generator.
 
-- **Gun** — $50 · L1
-Cheap, fast single-target (12 dmg, 2.5 shots/s). Your first line of defense. Weak vs. Tanked enemies, which resist it.
-- **Frost** — $80 · L2
-Slows enemies 50% for 1.5s. Tiny damage, but slows are what make every other tower hit harder. Slowing a **Wisp** also pauses its phase cycle.
-- **Flame** — $100 · L3
-Burns targets: 14 dmg/s for 2.5s. Fire **spreads** to any enemy within touching distance of a burning one, so it melts packs. The burn beats **Bulwark**'s regeneration. Weak vs. Soused enemies.
-- **Cannon** — $120 · L4
-Slow but hits an area (55px splash). Your answer to swarms and anything that dodges single-target shots (phased Wisps, splitting Fissions). Weak vs. Skitterers.
-- **Sniper** — $160 · L5
-Very long range (260), heavy single hit (70 dmg). Great for picking off tanks from a distance. Weak vs. Prowlers and Bolts.
-- **Railgun** — $300 · L6
-Fires a piercing slug through up to 5 enemies in a line; damage halves per enemy it passes (70 → 35 → 17.5 …). Place it where the path runs straight and parallel lanes stack up.
-- **Tesla** — $200 · L7
-Chain lightning: hits its target, then arcs to up to 3 more nearby enemies (×0.8 damage per hop). **One of the few ways to hit phased Wisps directly.**
-- **Venom** — $110 · L7
-Stacking poison: each hit adds a stack, up to 5 × 6 dmg/s = 30 dmg/s, refreshed for 3s. Poison ignores **Bulwark**'s regen and ticks through Wisp phases. Cheap DoT engine.
-- **Reaper** — $180 · L7
-Execute: any target below 30% HP takes ×2.5 damage at impact (40 → 100). The finisher that cleans up whatever else is dying — and one of only two towers that hurts the boss.
-- **Mint** — $150 · L7
-Pure economy: +$10 every 8s (scales with level). It never fights, and its income doesn't count toward score. Build it when you're rich enough to afford a second income stream.
-- **Warden** — $300 (+$100 each extra) · L7
-Aura: +25% damage to every tower inside its range, and the effects stack *multiplicatively* (two Wardens covering the same tower = ×1.5625). Expensive per unit, so cluster your kill zone around it.
-- **Mortar** — $400 · L7
-Dumb artillery: lobs a shell at **any tile on the map** (you pick the impact point; it can even land between two lanes) every 4s, with a 112px blast. The shell carries the stats of an ammo type you choose in its panel: Cannon, Flame, Frost, Tesla or Venom. **No enemy resists mortar damage**, and its slow/burn/poison payloads apply at full strength — it is the universal counter.
-- **Cruiser** — $400 · L7
-Pond-only missile tower. Fires a lock-on homing missile with half-the-map range (700px) for 225 damage — about a quarter of the boss's HP in one hit. If its target dies or escapes range before impact, the missile self-destructs for nothing.
+- **Gun** — $50, level 1. Cheap, fast single-target (12 dmg, 2.5 shots/s). Your first line of defense. Weak vs. Tanked enemies, which resist it.
+- **Frost** — $80, level 2. Slows enemies 50% for 1.5s. Tiny damage, but slows are what make every other tower hit harder. Slowing a **Wisp** also pauses its phase cycle.
+- **Flame** — $100, level 3. Burns targets: 14 dmg/s for 2.5s. Fire **spreads** to any enemy within touching distance of a burning one, so it melts packs. The burn beats **Bulwark**'s regeneration. Weak vs. Soused enemies.
+- **Cannon** — $120, level 4. Slow but hits an area (55px splash). Your answer to swarms and anything that dodges single-target shots (phased Wisps, splitting Fissions). Weak vs. Skitterers.
+- **Sniper** — $160, level 5. Very long range (260), heavy single hit (70 dmg). Great for picking off tanks from a distance. Weak vs. Prowlers and Bolts.
+- **Railgun** — $300, level 6. Fires a piercing slug through up to 5 enemies in a line; damage halves per enemy it passes (70 → 35 → 17.5 …). Place it where the path runs straight and parallel lanes stack up.
+- **Tesla** — $200, level 7. Chain lightning: hits its target, then arcs to up to 3 more nearby enemies (×0.8 damage per hop). **One of the few ways to hit phased Wisps directly.**
+- **Venom** — $110, level 7. Stacking poison: each hit adds a stack, up to 5 × 6 dmg/s = 30 dmg/s, refreshed for 3s. Poison ignores **Bulwark**'s regen and ticks through Wisp phases. Cheap DoT engine.
+- **Reaper** — $180, level 7. Execute: any target below 30% HP takes ×2.5 damage at impact (40 → 100). The finisher that cleans up whatever else is dying — and one of only two towers that hurts the boss.
+- **Mint** — $150, level 7. Pure economy: +$10 every 8s (scales with level). It never fights, and its income doesn't count toward score. Build it when you're rich enough to afford a second income stream.
+- **Warden** — $300 (+$100 each extra), level 7. Aura: +25% damage to every tower inside its range, and the effects stack *multiplicatively* (two Wardens covering the same tower = ×1.5625). Expensive per unit, so cluster your kill zone around it.
+- **Mortar** — $400, level 7. Dumb artillery: lobs a shell at **any tile on the map** (you pick the impact point; it can even land between two lanes) every 4s, with a 112px blast. The shell carries the stats of an ammo type you choose in its panel: Cannon, Flame, Frost, Tesla or Venom. **No enemy resists mortar damage**, and its slow/burn/poison payloads apply at full strength — it is the universal counter.
+- **Cruiser** — $400, level 7. Pond-only missile tower. Fires a lock-on homing missile with half-the-map range (700px) for 225 damage — about a quarter of the boss's HP in one hit. If its target dies or escapes range before impact, the missile self-destructs for nothing.
 
 ## The Enemies
 
